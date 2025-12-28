@@ -1,0 +1,10 @@
+# .gitignore
+.venv/
+__pycache__/
+*.pyc
+dist/
+build/
+*.egg-info/
+.env
+.DS_Store
+.vscode/
