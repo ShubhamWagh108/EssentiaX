@@ -37,10 +37,34 @@ def _infer_problem_type(df: pd.DataFrame, target: str):
     avg_len = y.astype(str).str.len().mean()
     if n_unique <= 1:
         return None, "invalid"
-    if n_unique <= 30 and avg_len < 50:
+    
+    # Enhanced NLP detection - check if we have a text column in the dataset
+    text_columns = []
+    for col in df.columns:
+        if col != target and df[col].dtype == 'object':
+            col_avg_len = df[col].astype(str).str.len().mean()
+            if col_avg_len >= 30:  # Potential text column
+                sample_text = df[col].astype(str).iloc[0] if len(df) > 0 else ""
+                has_spaces = ' ' in sample_text
+                has_punctuation = any(char in sample_text for char in '.,!?;:')
+                if has_spaces or has_punctuation:
+                    text_columns.append(col)
+    
+    # If we have text columns and target is categorical, likely NLP
+    if text_columns and n_unique <= 10 and avg_len < 20:
+        return "nlp", "text_classification"
+    
+    # Check for NLP patterns in target itself
+    if avg_len >= 30:
+        sample_text = y.astype(str).iloc[0] if len(y) > 0 else ""
+        has_spaces = ' ' in sample_text
+        has_punctuation = any(char in sample_text for char in '.,!?;:')
+        
+        if has_spaces or has_punctuation or avg_len >= 50:
+            return "nlp", "long_text"
+    
+    if n_unique <= 30 and avg_len < 30:
         return "classification", "categorical_labels"
-    if avg_len >= 50:
-        return "nlp", "long_text"
     return "classification", "categorical_high_card"
 
 
