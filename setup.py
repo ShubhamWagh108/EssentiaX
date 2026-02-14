@@ -7,29 +7,35 @@ long_description = (here / "README.md").read_text(encoding="utf-8")
 
 setup(
     name="Essentiax",
-    version="0.3.0",  # ⬆️ Major version bump for Feature Engineering module
+    version="1.0.0",  # Major release: AutoML, Feature Engineering, AI Insights, Backend API, Streamlit Dashboard
     author="Shubham Wagh",
     author_email="waghshubham197@gmail.com",
-    description="A next-generation Python library for smart EDA, cleaning, and interpretability in ML.",
+    description="Complete ML automation platform with AutoML, Feature Engineering, AI Insights, and Interactive Dashboards.",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/ShubhamWagh/EssentiaX",
+    url="https://github.com/ShubhamWagh108/EssentiaX",
     
     packages=find_packages(),
     include_package_data=True,
 
-    # ⬇️ CRITICAL UPDATE: Added visualization and analysis libraries + Feature Engineering
     install_requires=[
         "pandas>=1.0",
         "numpy>=1.20",
         "matplotlib>=3.0",
         "seaborn>=0.11",
         "scikit-learn>=1.0",
-        "rich>=10.0",      # For beautiful console UI
-        "openpyxl>=3.0",   # For Excel files
-        "plotly>=5.0",     # Interactive visualizations
-        "scipy>=1.7",      # Statistical analysis
-        "kaleido>=0.2.1"   # Static image export for Plotly
+        "rich>=10.0",
+        "openpyxl>=3.0",
+        "plotly>=5.0",
+        "scipy>=1.7",
+        "kaleido>=0.2.1",
+        "xgboost>=1.5.0",
+        "lightgbm>=3.3.0",
+        "catboost>=1.0.0",
+        "optuna>=3.0.0",
+        "shap>=0.41.0",
+        "imbalanced-learn>=0.9.0",
+        "joblib>=1.1.0"
     ],
 
     classifiers=[
