@@ -71,18 +71,38 @@ def smart_read(path, sheet_name=0, dropna=False, fillna=None):
                 file_stats['Delimiter'] = f"'{delimiter}'"
 
             # --- EXCEL ---
-            elif ext in [".xls", ".xlsx"]:
-                # Check sheets first
-                xl = pd.ExcelFile(path)
-                sheet_names = xl.sheet_names
-                
-                # If user didn't pick a specific name and there are multiple, warn them
-                if len(sheet_names) > 1 and sheet_name == 0:
-                    console.print(f"[yellow]ℹ Note: Multiple sheets found: {sheet_names}. Loading first one.[/yellow]")
-                
-                df = pd.read_excel(path, sheet_name=sheet_name)
-                file_stats['Type'] = "Excel"
-                file_stats['Sheet'] = str(sheet_name) if sheet_name else sheet_names[0]
+            elif ext in [".xls", ".xlsx", ".xlsm", ".xlsb"]:
+                try:
+                    # Method 1: Try reading directly with pandas (most reliable)
+                    df = pd.read_excel(path, sheet_name=sheet_name, engine=None)
+                    
+                    # Get sheet info for display
+                    try:
+                        xl = pd.ExcelFile(path)
+                        sheet_names = xl.sheet_names
+                        if len(sheet_names) > 1 and sheet_name == 0:
+                            console.print(f"[yellow]ℹ Note: Multiple sheets found: {sheet_names}. Loaded first one.[/yellow]")
+                    except:
+                        pass
+                    
+                    file_stats['Type'] = "Excel"
+                    file_stats['Sheet'] = str(sheet_name) if isinstance(sheet_name, int) else sheet_name
+                    
+                except Exception as e1:
+                    # Method 2: Try with explicit openpyxl engine
+                    try:
+                        console.print(f"[yellow]⚠ Trying openpyxl engine...[/yellow]")
+                        df = pd.read_excel(path, sheet_name=sheet_name, engine='openpyxl')
+                        file_stats['Type'] = "Excel (openpyxl)"
+                        file_stats['Sheet'] = str(sheet_name)
+                        
+                    except Exception as e2:
+                        console.print(f"[bold red]❌ Excel Error:[/bold red] {str(e1)}")
+                        console.print(f"[yellow]💡 Tip: File might be corrupted. Try:[/yellow]")
+                        console.print(f"   1. Open in Excel and Save As → new file")
+                        console.print(f"   2. Export to CSV format")
+                        console.print(f"   3. Use: pd.read_excel('{path}', sheet_name={sheet_name})")
+                        return None
 
             else:
                 console.print("[bold red]❌ Unsupported file format.[/bold red]")
