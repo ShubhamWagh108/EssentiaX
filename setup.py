@@ -7,7 +7,7 @@ long_description = (here / "README.md").read_text(encoding="utf-8")
 
 setup(
     name="Essentiax",
-    version="1.0.0",  # Major release: AutoML, Feature Engineering, AI Insights, Backend API, Streamlit Dashboard
+    version="1.0.1",  # Bug fix: Excel & CSV encoding handling improvements
     author="Shubham Wagh",
     author_email="waghshubham197@gmail.com",
     description="Complete ML automation platform with AutoML, Feature Engineering, AI Insights, and Interactive Dashboards.",
