@@ -58,17 +58,31 @@ def smart_read(path, sheet_name=0, dropna=False, fillna=None):
 
             # --- CSV ---
             if ext == ".csv":
-                with open(path, 'r', encoding='utf-8', errors='ignore') as f:
-                    sample = f.read(2048)
-                    sniffer = csv.Sniffer()
-                    try:
-                        delimiter = sniffer.sniff(sample).delimiter
-                    except:
-                        delimiter = ',' # Fallback
+                # Try multiple encodings
+                encodings = ['utf-8', 'latin-1', 'iso-8859-1', 'cp1252', 'utf-16']
+                df = None
                 
-                df = pd.read_csv(path, delimiter=delimiter)
-                file_stats['Type'] = "CSV"
-                file_stats['Delimiter'] = f"'{delimiter}'"
+                for encoding in encodings:
+                    try:
+                        with open(path, 'r', encoding=encoding, errors='ignore') as f:
+                            sample = f.read(2048)
+                            sniffer = csv.Sniffer()
+                            try:
+                                delimiter = sniffer.sniff(sample).delimiter
+                            except:
+                                delimiter = ',' # Fallback
+                        
+                        df = pd.read_csv(path, delimiter=delimiter, encoding=encoding, on_bad_lines='skip')
+                        file_stats['Type'] = "CSV"
+                        file_stats['Delimiter'] = f"'{delimiter}'"
+                        file_stats['Encoding'] = encoding
+                        break
+                    except:
+                        continue
+                
+                if df is None:
+                    console.print("[bold red]❌ Could not read CSV with any encoding[/bold red]")
+                    return None
 
             # --- EXCEL ---
             elif ext in [".xls", ".xlsx", ".xlsm", ".xlsb"]:
