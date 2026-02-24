@@ -142,16 +142,16 @@ def smart_clean(
                     print(f"   ⚠️  Warning: {remaining_missing:,} missing values remain")
     
     # ═══════════════════════════════════════════════════════
-    # 2️⃣ OUTLIER REMOVAL (OPTIMIZED - SINGLE PASS)
+    # 2️⃣ OUTLIER REMOVAL (SMART - MULTI-COLUMN THRESHOLD)
     # ═══════════════════════════════════════════════════════
     if outlier_strategy == "iqr" and len(numeric_cols) > 0:
         if verbose:
-            print("\n2️⃣ Removing Outliers (IQR Method)...")
+            print("\n2️⃣ Removing Outliers (Smart IQR Method)...")
         
         before_rows = df.shape[0]
         
-        # ✅ BUILD SINGLE BOOLEAN MASK (OPTIMIZED)
-        mask = pd.Series([True] * len(df), index=df.index)
+        # ✅ COUNT OUTLIERS PER ROW (SMARTER APPROACH)
+        outlier_count_per_row = pd.Series([0] * len(df), index=df.index)
         outlier_counts = {}
         
         for col in numeric_cols:
@@ -165,19 +165,25 @@ def smart_clean(
             lower = Q1 - 1.5 * IQR
             upper = Q3 + 1.5 * IQR
             
-            # Update mask (no dataframe copy!)
-            col_mask = (df[col] >= lower) & (df[col] <= upper)
-            outliers_in_col = (~col_mask).sum()
+            # Count outliers in this column
+            is_outlier = (df[col] < lower) | (df[col] > upper)
+            outliers_in_col = is_outlier.sum()
+            
             if outliers_in_col > 0:
                 outlier_counts[col] = outliers_in_col
-            mask &= col_mask
+                outlier_count_per_row += is_outlier.astype(int)
         
-        # ✅ APPLY MASK ONCE (single operation)
+        # ✅ SMART THRESHOLD: Remove only if outlier in 30%+ of numeric columns
+        # This prevents removing rows with just 1-2 unusual values
+        threshold = max(3, int(len(numeric_cols) * 0.3))  # At least 3 columns or 30%
+        mask = outlier_count_per_row < threshold
+        
         df = df[mask]
         
         removed = before_rows - df.shape[0]
         if verbose:
             print(f"   🧮 Removed {removed:,} rows as outliers ({100*removed/before_rows:.2f}%)")
+            print(f"   📊 Threshold: Outliers in {threshold}+ columns out of {len(numeric_cols)}")
             if outlier_counts:
                 top_outliers = sorted(outlier_counts.items(), key=lambda x: x[1], reverse=True)[:3]
                 print(f"   📊 Top columns with outliers:")

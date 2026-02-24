@@ -16,37 +16,13 @@ print("✅ EssentiaX v1.0.0 installed!")
 
 ---
 
-## Cell 2: Load Large Excel File (300MB, 3 Sheets!)
+## Cell 2: Load CSV File (One Line!)
 
 ```python
-# 📊 Load Large Excel File - EssentiaX handles it!
+# 📊 Load CSV - ONE LINE!
 from essentiax.io import smart_read
 
-# Method 1: Using smart_read (recommended)
-df = smart_read('/content/DMS Sales report till 30 Apr 25.xlsx', sheet_name='Sheet3')
-
-# If file is corrupted, use fallback:
-if df is None:
-    import pandas as pd
-    df = pd.read_excel('/content/DMS Sales report till 30 Apr 25.xlsx', sheet_name='Sheet3')
-    print(f"✅ Loaded with fallback: {df.shape[0]} rows × {df.shape[1]} columns")
-else:
-    print(f"✅ Loaded: {df.shape[0]} rows × {df.shape[1]} columns")
-
-df.head()
-```
-
-**Alternative - Load all sheets:**
-```python
-# Load all 3 sheets at once
-from essentiax.io import smart_read
-
-sheets = smart_read('your_file.xlsx', sheet_name=None)  # Returns dict of all sheets
-if sheets:
-    print(f"✅ Loaded {len(sheets)} sheets!")
-    for name, data in sheets.items():
-        print(f"   {name}: {data.shape}")
-    df = list(sheets.values())[0]
+df = smart_read('/content/your_file.csv')
 ```
 
 ---
