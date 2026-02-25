@@ -1,10 +1,12 @@
 """
-EssentiaX v1.0.5 - Google Colab Demo
+EssentiaX v1.0.6 - Google Colab Demo
 ====================================
 Copy each cell below into separate Colab cells for your LinkedIn video.
 Minimal code, maximum impact! 🚀
 
-IMPORTANT: Make sure to upgrade to v1.0.5 first:
+NEW in v1.0.6: Auto-detect target column automatically! 🎯
+
+IMPORTANT: Make sure to upgrade to v1.0.6 first:
 !pip install --upgrade Essentiax
 """
 
@@ -12,10 +14,10 @@ IMPORTANT: Make sure to upgrade to v1.0.5 first:
 # CELL 1: Installation & Setup
 # ============================================================================
 """
-# 📦 Install EssentiaX v1.0.5
+# 📦 Install EssentiaX v1.0.6
 """
 !pip install --upgrade Essentiax
-print("✅ EssentiaX v1.0.5 installed!")
+print("✅ EssentiaX v1.0.6 installed!")
 
 # ============================================================================
 # CELL 2: Load Sample Data
@@ -47,13 +49,13 @@ print(f"✅ Cleaned: {df_clean.shape}")
 # CELL 4: Smart EDA (2 lines!)
 # ============================================================================
 """
-# 📊 Smart EDA - Two Lines!
+# 📊 Smart EDA - Two Lines! (Auto-detects target!)
 """
 from essentiax.eda import SmartEDA
 
 eda = SmartEDA()
-report = eda.analyze(df_clean, target='target')  # Fixed: use 'target' not 'target_column'
-print("✅ EDA Complete with rich visualizations!")
+report = eda.analyze(df_clean)  # Target auto-detected! ✨
+print(f"✅ EDA Complete! Auto-detected target: {eda.detected_target}")
 
 # ============================================================================
 # CELL 5: AI Insights (2 lines!)
@@ -74,7 +76,9 @@ print(f"✅ Generated {len(insights.get('key_findings', []))} AI insights!")
 """
 from essentiax.feature_engineering import FeatureEngineer
 
-X, y = df_clean.drop('target', axis=1), df_clean['target']
+# Use auto-detected target from EDA
+target_col = eda.detected_target or 'target'
+X, y = df_clean.drop(target_col, axis=1), df_clean[target_col]
 X_new = FeatureEngineer().fit_transform(X, y)
 print(f"✅ Features: {X.shape[1]} → {X_new.shape[1]}")
 

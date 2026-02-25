@@ -1,4 +1,4 @@
-# EssentiaX v1.0.5 - Google Colab Demo 🚀
+# EssentiaX v1.0.6 - Google Colab Demo 🚀
 
 **Complete ML Automation - ONLY EssentiaX imports!**
 
@@ -13,7 +13,11 @@ import essentiax
 print(f"EssentiaX version: {essentiax.__version__}")
 ```
 
-Expected version: **1.0.5** or higher
+Expected version: **1.0.6** or higher
+
+## ✨ NEW in v1.0.6: Auto-detect Target Column!
+
+No need to specify target column - EssentiaX detects it automatically! 🎯
 
 ---
 
@@ -24,9 +28,9 @@ Copy each cell below into Google Colab for your LinkedIn video demo.
 ## Cell 1: Installation
 
 ```python
-# 📦 Install EssentiaX v1.0.5 - ONE library, ALL features!
+# 📦 Install EssentiaX v1.0.6 - ONE library, ALL features!
 !pip install --upgrade Essentiax
-print("✅ EssentiaX v1.0.5 installed!")
+print("✅ EssentiaX v1.0.6 installed!")
 ```
 
 ---
@@ -57,12 +61,15 @@ print(f"✅ Cleaned: {df_clean.shape}")
 ## Cell 4: Smart EDA (2 Lines!)
 
 ```python
-# 📊 Smart EDA - TWO LINES!
+# 📊 Smart EDA - TWO LINES! (Auto-detects target!)
 from essentiax.eda import SmartEDA
 
 eda = SmartEDA()
-report = eda.analyze(df_clean, target='your_target_column')  # Replace with actual target
+report = eda.analyze(df_clean)  # Target auto-detected! ✨
+print(f"✅ Auto-detected target: {eda.detected_target}")
 ```
+
+**Note**: Target column is automatically detected! Or specify manually: `report = eda.analyze(df_clean, target='your_column')`
 
 ---
 
@@ -84,7 +91,9 @@ print(f"✅ {len(insights.get('key_findings', []))} insights generated!")
 # 🔧 Feature Engineering - THREE LINES!
 from essentiax.feature_engineering import FeatureEngineer
 
-X, y = df_clean.drop('your_target_column', axis=1), df_clean['your_target_column']
+# Use auto-detected target from EDA
+target_col = eda.detected_target or df_clean.columns[-1]
+X, y = df_clean.drop(target_col, axis=1), df_clean[target_col]
 X_new = FeatureEngineer().fit_transform(X, y)
 print(f"✅ Features: {X.shape[1]} → {X_new.shape[1]}")
 ```
