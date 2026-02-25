@@ -7,7 +7,7 @@ long_description = (here / "README.md").read_text(encoding="utf-8")
 
 setup(
     name="Essentiax",
-    version="1.0.7",  # Fix: Remove output_format parameter from SmartEDA
+    version="1.0.8",  # Fix: Remove verbose parameter from SmartEDA
     author="Shubham Wagh",
     author_email="waghshubham197@gmail.com",
     description="Complete ML automation platform with AutoML, Feature Engineering, AI Insights, and Interactive Dashboards.",
