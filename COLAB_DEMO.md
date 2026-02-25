@@ -46,7 +46,7 @@ print(f"✅ Cleaned: {df_clean.shape}")
 from essentiax.eda import SmartEDA
 
 eda = SmartEDA()
-report = eda.analyze(df_clean, target_column='target')
+report = eda.analyze(df_clean, target='target')
 ```
 
 ---

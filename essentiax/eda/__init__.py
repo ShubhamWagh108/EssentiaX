@@ -10,7 +10,7 @@ class SmartEDA:
     
     Usage:
         eda = SmartEDA()
-        report = eda.analyze(df, target_column='target')
+        report = eda.analyze(df, target='target')
     """
     def __init__(self, mode='auto', output_format='html', verbose=True):
         self.mode = mode
@@ -18,11 +18,11 @@ class SmartEDA:
         self.verbose = verbose
         self.report = None
     
-    def analyze(self, df, target_column=None, output_file=None):
+    def analyze(self, df, target=None, output_file=None):
         """Perform EDA analysis"""
         self.report = smart_eda(
             df, 
-            target_column=target_column,
+            target=target,
             mode=self.mode,
             output_format=self.output_format,
             output_file=output_file,
@@ -30,9 +30,9 @@ class SmartEDA:
         )
         return self.report
     
-    def fit(self, df, target_column=None):
+    def fit(self, df, target=None):
         """Fit method (for sklearn compatibility)"""
-        return self.analyze(df, target_column)
+        return self.analyze(df, target)
 
 __all__ = [
     'smart_eda',

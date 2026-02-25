@@ -7,7 +7,7 @@ long_description = (here / "README.md").read_text(encoding="utf-8")
 
 setup(
     name="Essentiax",
-    version="1.0.4",  # Fix: Add SmartEDA class wrapper
+    version="1.0.5",  # Fix: Correct SmartEDA parameter name
     author="Shubham Wagh",
     author_email="waghshubham197@gmail.com",
     description="Complete ML automation platform with AutoML, Feature Engineering, AI Insights, and Interactive Dashboards.",
