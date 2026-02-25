@@ -1,4 +1,4 @@
-# EssentiaX v1.0.7 - Google Colab Demo 🚀
+# EssentiaX v1.0.8 - Google Colab Demo 🚀
 
 **Complete ML Automation - ONLY EssentiaX imports!**
 
@@ -13,9 +13,9 @@ import essentiax
 print(f"EssentiaX version: {essentiax.__version__}")
 ```
 
-Expected version: **1.0.7** or higher
+Expected version: **1.0.8** or higher
 
-## ✨ NEW in v1.0.7: Auto-detect Target Column!
+## ✨ NEW: Auto-detect Target Column!
 
 No need to specify target column - EssentiaX detects it automatically! 🎯
 
@@ -28,9 +28,9 @@ Copy each cell below into Google Colab for your LinkedIn video demo.
 ## Cell 1: Installation
 
 ```python
-# 📦 Install EssentiaX v1.0.7 - ONE library, ALL features!
+# 📦 Install EssentiaX v1.0.8 - ONE library, ALL features!
 !pip install --upgrade Essentiax
-print("✅ EssentiaX v1.0.7 installed!")
+print("✅ EssentiaX v1.0.8 installed!")
 ```
 
 ---
