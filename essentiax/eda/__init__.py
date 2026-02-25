@@ -17,9 +17,8 @@ class SmartEDA:
         eda = SmartEDA()
         report = eda.analyze(df, target='your_column')
     """
-    def __init__(self, mode='auto', output_format='html', verbose=True, auto_detect=True):
+    def __init__(self, mode='console', verbose=True, auto_detect=True):
         self.mode = mode
-        self.output_format = output_format
         self.verbose = verbose
         self.auto_detect = auto_detect
         self.report = None
@@ -36,7 +35,7 @@ class SmartEDA:
         target : str, optional
             Target column name. If None, will be auto-detected.
         output_file : str, optional
-            Path to save HTML report
+            Path to save HTML report (uses report_path parameter)
             
         Returns:
         --------
@@ -46,8 +45,7 @@ class SmartEDA:
             df, 
             target=target,
             mode=self.mode,
-            output_format=self.output_format,
-            output_file=output_file,
+            report_path=output_file if output_file else "essentiax_eda_report.html",
             verbose=self.verbose,
             auto_detect=self.auto_detect
         )
