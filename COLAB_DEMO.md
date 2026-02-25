@@ -1,6 +1,21 @@
-# EssentiaX v1.0.0 - Google Colab Demo 🚀
+# EssentiaX v1.0.5 - Google Colab Demo 🚀
 
 **Complete ML Automation - ONLY EssentiaX imports!**
+
+## ⚠️ IMPORTANT: Before Starting
+
+If you're getting import errors, make sure you have the latest version:
+
+```python
+!pip install --upgrade Essentiax
+# Verify version
+import essentiax
+print(f"EssentiaX version: {essentiax.__version__}")
+```
+
+Expected version: **1.0.5** or higher
+
+---
 
 Copy each cell below into Google Colab for your LinkedIn video demo.
 
@@ -9,9 +24,9 @@ Copy each cell below into Google Colab for your LinkedIn video demo.
 ## Cell 1: Installation
 
 ```python
-# 📦 Install EssentiaX - ONE library, ALL features!
-!pip install Essentiax -q
-print("✅ EssentiaX v1.0.0 installed!")
+# 📦 Install EssentiaX v1.0.5 - ONE library, ALL features!
+!pip install --upgrade Essentiax
+print("✅ EssentiaX v1.0.5 installed!")
 ```
 
 ---
@@ -46,7 +61,7 @@ print(f"✅ Cleaned: {df_clean.shape}")
 from essentiax.eda import SmartEDA
 
 eda = SmartEDA()
-report = eda.analyze(df_clean, target='target')
+report = eda.analyze(df_clean, target='your_target_column')  # Replace with actual target
 ```
 
 ---
@@ -69,7 +84,7 @@ print(f"✅ {len(insights.get('key_findings', []))} insights generated!")
 # 🔧 Feature Engineering - THREE LINES!
 from essentiax.feature_engineering import FeatureEngineer
 
-X, y = df_clean.drop('target', axis=1), df_clean['target']
+X, y = df_clean.drop('your_target_column', axis=1), df_clean['your_target_column']
 X_new = FeatureEngineer().fit_transform(X, y)
 print(f"✅ Features: {X.shape[1]} → {X_new.shape[1]}")
 ```
