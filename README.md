@@ -104,6 +104,65 @@ AI automatically chooses the best chart type:
 - Categorical analysis for discrete variables
 - Scatter matrices for multi-variable analysis
 
+## 🎨 NEW: Advanced 3D & Interactive Visualizations
+
+**Transform boring charts into stunning visualizations!**
+
+```python
+from essentiax.visuals import advanced_viz
+
+# Auto mode - AI selects best advanced visualizations
+advanced_viz(df, viz_type='auto')
+```
+
+### 🚀 10 Advanced Visualization Types
+
+| Visualization | Description | Perfect For |
+|--------------|-------------|-------------|
+| 🎨 **3D Scatter + Clustering** | 3D scatter with K-means clustering | Multi-dimensional patterns |
+| 🌊 **3D Surface Plot** | Beautiful 3D surfaces | Density visualization |
+| ☀️ **Sunburst Chart** | Hierarchical circular viz | Categorical hierarchy |
+| 🌊 **Sankey Diagram** | Flow visualization | Process flows |
+| 🎻 **Advanced Violin Plots** | Distribution + statistics | Feature comparison |
+| 📊 **Parallel Coordinates** | Multi-dimensional data | High-dim exploration |
+| 🗺️ **Treemap** | Hierarchical rectangles | Category proportions |
+| 🎬 **Animated Scatter** | Time-series animations | Temporal analysis |
+| 🎭 **Advanced Correlation** | Interactive correlation | Feature relationships |
+| 🏔️ **Ridge Plot** | Overlapping distributions | Category comparison |
+
+### ✨ Key Features
+
+- ✅ **Fully Interactive** - Hover, zoom, pan, rotate
+- ✅ **3D Capabilities** - True 3D with rotation
+- ✅ **Auto Clustering** - K-means built-in
+- ✅ **Production Ready** - Beautiful aesthetics
+- ✅ **One-Line Usage** - Simple API
+
+### 📝 Quick Examples
+
+```python
+from essentiax.visuals import Advanced3DViz
+
+engine = Advanced3DViz()
+
+# 3D scatter with clustering
+engine.plot_3d_scatter_clusters(df, n_clusters=3)
+
+# 3D surface plot
+engine.plot_3d_surface(df, x_col='feature1', y_col='feature2')
+
+# Advanced violin plots
+engine.plot_violin_advanced(df, columns=['f1', 'f2', 'f3'])
+
+# Parallel coordinates
+engine.plot_parallel_coordinates(df, color_col='target')
+
+# Sunburst chart
+engine.plot_sunburst(df, path_columns=['cat1', 'cat2'])
+```
+
+**See `ADVANCED_VIZ_GUIDE.md` for complete documentation!**
+
 ## 🧹 Smart Data Cleaning
 
 Transform messy data into ML-ready datasets:

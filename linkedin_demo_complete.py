@@ -89,17 +89,13 @@ time.sleep(2)
 # ============================================================================
 print_section("STEP 5: Smart Visualizations")
 
-from essentiax.visuals import SmartViz
+from essentiax.visuals import smart_viz
 
 print("📊 Creating intelligent visualizations...")
-viz = SmartViz()
 
 # Auto-detect and create appropriate plots
-print("   - Generating distribution plots...")
-viz.plot_distributions(df_cleaned)
-
-print("   - Generating correlation heatmap...")
-viz.plot_correlation(df_cleaned)
+print("   - Generating distribution plots and correlation heatmap...")
+smart_viz(df_cleaned, mode='auto')
 
 print("✅ Visualizations created!")
 time.sleep(2)

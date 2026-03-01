@@ -1,12 +1,12 @@
 """
-EssentiaX v1.0.6 - Google Colab Demo
+EssentiaX v1.0.9 - Google Colab Demo
 ====================================
 Copy each cell below into separate Colab cells for your LinkedIn video.
 Minimal code, maximum impact! 🚀
 
-NEW in v1.0.6: Auto-detect target column automatically! 🎯
+NEW in v1.0.9: Fixed SmartViz import issues! 🎯
 
-IMPORTANT: Make sure to upgrade to v1.0.6 first:
+IMPORTANT: Make sure to upgrade to v1.0.9 first:
 !pip install --upgrade Essentiax
 """
 
@@ -14,10 +14,15 @@ IMPORTANT: Make sure to upgrade to v1.0.6 first:
 # CELL 1: Installation & Setup
 # ============================================================================
 """
-# 📦 Install EssentiaX v1.0.6
+# 📦 Install EssentiaX v1.1.1
 """
 !pip install --upgrade Essentiax
-print("✅ EssentiaX v1.0.6 installed!")
+
+# Setup for Colab (ensures plots display properly)
+from essentiax.visuals import setup_colab
+setup_colab()
+
+print("✅ EssentiaX v1.1.1 installed!")
 
 # ============================================================================
 # CELL 2: Load Sample Data
@@ -138,13 +143,9 @@ print("✅ Model saved with API code & Docker config!")
 """
 # 📊 Smart Visualizations
 """
-from essentiax.visuals import SmartViz
-import matplotlib.pyplot as plt
+from essentiax.visuals import smart_viz
 
-viz = SmartViz()
-viz.plot_distributions(df_clean)
-viz.plot_correlation(df_clean)
-plt.show()
+smart_viz(df_clean)
 
 # ============================================================================
 # CELL 12: Final Summary

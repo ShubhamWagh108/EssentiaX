@@ -2,8 +2,13 @@ from .io.smart_read import smart_read
 from .summary.problem_card import problem_card
 from .summary.eda_pro import smart_eda_pro
 from .visuals.smartViz import smart_viz
+from .visuals.advanced_viz import advanced_viz
+from .visuals.colab_setup import setup_colab
 from .cleaning.smart_clean import smart_clean
 from .eda import smart_eda
+
+# Version
+__version__ = "1.1.1"
 
 # Feature Engineering Module
 from .feature_engineering import (
@@ -28,6 +33,8 @@ __all__ = [
     "problem_card", 
     "smart_eda_pro",
     "smart_viz",
+    "advanced_viz",
+    "setup_colab",
     "smart_clean",
     "smart_eda",
     # Feature Engineering

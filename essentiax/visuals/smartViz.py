@@ -46,6 +46,37 @@ warnings.filterwarnings("ignore")
 # Initialize Rich Console for beautiful output
 console = Console()
 
+
+def _display_plotly_figure(fig):
+    """
+    Display Plotly figure in any environment (Jupyter, Colab, IPython, etc.)
+    """
+    try:
+        # Try to detect if we're in a notebook environment
+        from IPython import get_ipython
+        from IPython.display import display
+        
+        ipython = get_ipython()
+        if ipython is not None:
+            # We're in IPython/Jupyter/Colab
+            if 'google.colab' in str(ipython.__class__):
+                # Google Colab - use plotly's built-in renderer
+                fig.show(renderer='colab')
+            else:
+                # Regular Jupyter - use default renderer
+                display(fig)
+        else:
+            # Not in notebook - use default show
+            fig.show()
+    except ImportError:
+        # IPython not available - use default show
+        fig.show()
+    except Exception as e:
+        # Fallback to default show
+        console.print(f"[yellow]⚠️ Display warning: {e}[/yellow]")
+        fig.show()
+
+
 # Set modern styling
 plt.style.use('seaborn-v0_8-darkgrid')
 sns.set_palette("husl")
@@ -564,7 +595,7 @@ class SmartVizEngine:
                 title_font_size=16,
                 showlegend=False
             )
-            fig.show()
+            _display_plotly_figure(fig)
         else:
             # Matplotlib version
             fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))

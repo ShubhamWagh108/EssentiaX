@@ -1,4 +1,4 @@
-# EssentiaX v1.0.8 - Google Colab Demo 🚀
+# EssentiaX v1.1.1 - Google Colab Demo 🚀
 
 **Complete ML Automation - ONLY EssentiaX imports!**
 
@@ -13,11 +13,11 @@ import essentiax
 print(f"EssentiaX version: {essentiax.__version__}")
 ```
 
-Expected version: **1.0.8** or higher
+Expected version: **1.1.1** or higher
 
-## ✨ NEW: Auto-detect Target Column!
+## ✨ NEW in v1.1.1: Fixed Colab Visualization Display!
 
-No need to specify target column - EssentiaX detects it automatically! 🎯
+Graphs now display properly in Google Colab - no more text-only output! 🎯
 
 ---
 
@@ -28,9 +28,14 @@ Copy each cell below into Google Colab for your LinkedIn video demo.
 ## Cell 1: Installation
 
 ```python
-# 📦 Install EssentiaX v1.0.8 - ONE library, ALL features!
+# 📦 Install EssentiaX v1.1.1 - ONE library, ALL features!
 !pip install --upgrade Essentiax
-print("✅ EssentiaX v1.0.8 installed!")
+
+# 🎨 Setup for Colab (IMPORTANT - ensures plots display!)
+from essentiax.visuals import setup_colab
+setup_colab()
+
+print("✅ EssentiaX v1.1.1 installed!")
 ```
 
 ---
@@ -151,13 +156,13 @@ print("✅ Model saved with API & Docker!")
 
 ---
 
-## Cell 11: Visualizations (2 Lines!)
+## Cell 11: Visualizations (1 Line!)
 
 ```python
-# 📊 Smart Visualizations - TWO LINES!
-from essentiax.visuals import SmartViz
+# 📊 Smart Visualizations - ONE LINE!
+from essentiax.visuals import smart_viz
 
-SmartViz().plot_all(df_clean)
+smart_viz(df_clean)
 ```
 
 ---

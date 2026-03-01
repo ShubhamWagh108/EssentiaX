@@ -88,10 +88,9 @@ print("✅ EDA complete with visualizations!")
 # ============================================================================
 show_title("Correlation Analysis", 4)
 
-from essentiax.visuals import SmartViz
+from essentiax.visuals import smart_viz
 
 print("🔥 Creating correlation heatmap...")
-viz = SmartViz()
 
 plt.figure(figsize=(12, 10))
 correlation = df_clean.corr()
