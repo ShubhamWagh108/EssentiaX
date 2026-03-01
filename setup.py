@@ -7,7 +7,7 @@ long_description = (here / "README.md").read_text(encoding="utf-8")
 
 setup(
     name="Essentiax",
-    version="1.1.1",  # Fix: Colab visualization display issue
+    version="1.1.2",  # Fix: More aggressive Colab renderer configuration
     author="Shubham Wagh",
     author_email="waghshubham197@gmail.com",
     description="Complete ML automation platform with AutoML, Feature Engineering, AI Insights, and Interactive Dashboards.",

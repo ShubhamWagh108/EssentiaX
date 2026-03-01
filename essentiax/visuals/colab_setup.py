@@ -19,9 +19,12 @@ def setup_colab():
     if IN_COLAB:
         print("🎨 Setting up EssentiaX for Google Colab...")
         
-        # Configure Plotly for Colab
+        # Configure Plotly for Colab - FORCE it
         import plotly.io as pio
         pio.renderers.default = 'colab'
+        
+        # Also set it in the config
+        import plotly.graph_objects as go
         
         # Enable inline plotting for matplotlib
         try:
@@ -34,6 +37,7 @@ def setup_colab():
         
         print("✅ EssentiaX visualization setup complete!")
         print("📊 All plots will now display properly in Colab")
+        print("💡 Plotly renderer set to: 'colab'")
     else:
         print("ℹ️ Not in Google Colab - no setup needed")
 
@@ -47,15 +51,19 @@ def enable_plotly_colab():
         import plotly.io as pio
         pio.renderers.default = 'colab'
         print("✅ Plotly renderer set to 'colab'")
+        print("📊 Graphs should now display in Colab")
     except Exception as e:
         print(f"⚠️ Could not set Plotly renderer: {e}")
 
 
-# Auto-setup when imported in Colab
+# Auto-setup when imported in Colab - ALWAYS try to configure
 try:
     import google.colab
     # Automatically configure when imported in Colab
     import plotly.io as pio
     pio.renderers.default = 'colab'
+    print("🎨 Auto-configured Plotly for Colab")
 except ImportError:
+    pass
+except Exception:
     pass

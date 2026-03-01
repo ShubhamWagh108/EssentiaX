@@ -8,7 +8,7 @@ from .cleaning.smart_clean import smart_clean
 from .eda import smart_eda
 
 # Version
-__version__ = "1.1.1"
+__version__ = "1.1.2"
 
 # Feature Engineering Module
 from .feature_engineering import (

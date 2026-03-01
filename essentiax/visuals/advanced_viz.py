@@ -24,35 +24,25 @@ from sklearn.cluster import KMeans
 warnings.filterwarnings("ignore")
 console = Console()
 
+# Configure Plotly for Colab automatically
+try:
+    import plotly.io as pio
+    # Try to detect if we're in Colab
+    try:
+        import google.colab
+        pio.renderers.default = 'colab'
+    except ImportError:
+        pass
+except ImportError:
+    pass
+
 
 def _display_plotly_figure(fig):
     """
     Display Plotly figure in any environment (Jupyter, Colab, IPython, etc.)
     """
-    try:
-        # Try to detect if we're in a notebook environment
-        from IPython import get_ipython
-        from IPython.display import display
-        
-        ipython = get_ipython()
-        if ipython is not None:
-            # We're in IPython/Jupyter/Colab
-            if 'google.colab' in str(ipython.__class__):
-                # Google Colab - use plotly's built-in renderer
-                fig.show(renderer='colab')
-            else:
-                # Regular Jupyter - use default renderer
-                display(fig)
-        else:
-            # Not in notebook - use default show
-            fig.show()
-    except ImportError:
-        # IPython not available - use default show
-        fig.show()
-    except Exception as e:
-        # Fallback to default show
-        console.print(f"[yellow]⚠️ Display warning: {e}[/yellow]")
-        fig.show()
+    # Just use fig.show() - Plotly will handle it with the renderer we set
+    fig.show()
 
 
 class Advanced3DViz:
