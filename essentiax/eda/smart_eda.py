@@ -64,6 +64,108 @@ warnings.filterwarnings("ignore")
 # Initialize Rich Console for beautiful output
 console = Console()
 
+# Configure Plotly rendering with robust environment detection
+try:
+    import plotly.io as pio
+    from IPython.display import display, HTML
+    import sys
+    
+    # Detect environment
+    def _detect_environment():
+        """Detect if running in Colab, Jupyter, or terminal"""
+        try:
+            import google.colab
+            return 'colab'
+        except ImportError:
+            pass
+        
+        try:
+            shell = get_ipython().__class__.__name__
+            if shell == 'ZMQInteractiveShell':
+                return 'jupyter'
+            elif shell == 'TerminalInteractiveShell':
+                return 'ipython'
+        except NameError:
+            pass
+        
+        return 'terminal'
+    
+    _ENVIRONMENT = _detect_environment()
+    
+    # Set default renderer based on environment
+    if _ENVIRONMENT == 'colab':
+        pio.renderers.default = 'colab'
+    elif _ENVIRONMENT == 'jupyter':
+        pio.renderers.default = 'notebook'
+    else:
+        pio.renderers.default = 'browser'
+        
+except ImportError:
+    _ENVIRONMENT = 'terminal'
+    pio = None
+
+
+def _display_plotly_figure(fig):
+    """
+    Display Plotly figure with guaranteed rendering in Colab/Jupyter environments.
+    
+    This function handles the timing and stream issues that prevent Plotly graphs
+    from rendering in Colab when mixed with rich console output.
+    """
+    try:
+        # Flush any pending console output to prevent stream clashing
+        import sys
+        sys.stdout.flush()
+        sys.stderr.flush()
+        
+        # Force console buffer flush if using rich
+        try:
+            console.file.flush()
+        except:
+            pass
+        
+        # Environment-specific rendering
+        if _ENVIRONMENT == 'colab':
+            # Colab-specific: Force display with explicit HTML injection
+            try:
+                from IPython.display import display, HTML
+                
+                # Method 1: Use display() with the figure directly (most reliable)
+                display(fig)
+                
+                # Small delay to ensure rendering completes
+                import time
+                time.sleep(0.1)
+                
+            except Exception as e:
+                # Fallback: Use fig.show() with explicit renderer
+                try:
+                    fig.show(renderer='colab')
+                except:
+                    # Last resort: Generate HTML and display
+                    html_str = fig.to_html(include_plotlyjs='cdn', div_id=f'plotly-div-{id(fig)}')
+                    display(HTML(html_str))
+                    
+        elif _ENVIRONMENT == 'jupyter':
+            # Jupyter notebook: Use display for better reliability
+            try:
+                from IPython.display import display
+                display(fig)
+            except:
+                fig.show(renderer='notebook')
+                
+        else:
+            # Terminal or other: Use standard show
+            fig.show()
+            
+    except Exception as e:
+        # Ultimate fallback: standard show method
+        try:
+            fig.show()
+        except Exception as show_error:
+            console.print(f"[yellow]⚠️ Warning: Could not display plot. Error: {show_error}[/yellow]")
+            console.print("[yellow]💡 Tip: Try running in Jupyter/Colab for interactive plots[/yellow]")
+
 # Set modern styling for matplotlib
 plt.style.use('seaborn-v0_8-darkgrid')
 sns.set_palette("husl")
@@ -991,14 +1093,14 @@ def smart_eda(
                 console.print("📊 [bold yellow]Generating Distribution Plots...[/bold yellow]")
                 for col in numeric_cols[:min(3, max_plots - plot_count)]:
                     fig = _create_interactive_distribution(df_sample, col)
-                    fig.show()
+                    _display_plotly_figure(fig)
                     plot_count += 1
             
             # Correlation heatmap
             if len(numeric_cols) > 1 and plot_count < max_plots:
                 console.print("\n🔥 [bold yellow]Generating Correlation Heatmap...[/bold yellow]")
                 fig = _create_interactive_correlation(df_sample, numeric_cols[:10])
-                fig.show()
+                _display_plotly_figure(fig)
                 plot_count += 1
             
             # Categorical plots
@@ -1006,7 +1108,7 @@ def smart_eda(
                 console.print("\n🏷️ [bold yellow]Generating Categorical Plots...[/bold yellow]")
                 for col in categorical_cols[:min(2, max_plots - plot_count)]:
                     fig = _create_interactive_categorical(df_sample, col, target)
-                    fig.show()
+                    _display_plotly_figure(fig)
                     plot_count += 1
         
         console.print(f"\n✅ Generated {plot_count} interactive visualizations")

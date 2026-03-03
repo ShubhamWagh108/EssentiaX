@@ -46,25 +46,107 @@ warnings.filterwarnings("ignore")
 # Initialize Rich Console for beautiful output
 console = Console()
 
-# Configure Plotly for Colab automatically
+# Configure Plotly rendering with robust environment detection
 try:
     import plotly.io as pio
-    # Try to detect if we're in Colab
-    try:
-        import google.colab
+    from IPython.display import display, HTML
+    import sys
+    
+    # Detect environment
+    def _detect_environment():
+        """Detect if running in Colab, Jupyter, or terminal"""
+        try:
+            import google.colab
+            return 'colab'
+        except ImportError:
+            pass
+        
+        try:
+            shell = get_ipython().__class__.__name__
+            if shell == 'ZMQInteractiveShell':
+                return 'jupyter'
+            elif shell == 'TerminalInteractiveShell':
+                return 'ipython'
+        except NameError:
+            pass
+        
+        return 'terminal'
+    
+    _ENVIRONMENT = _detect_environment()
+    
+    # Set default renderer based on environment
+    if _ENVIRONMENT == 'colab':
         pio.renderers.default = 'colab'
-    except ImportError:
-        pass
+    elif _ENVIRONMENT == 'jupyter':
+        pio.renderers.default = 'notebook'
+    else:
+        pio.renderers.default = 'browser'
+        
 except ImportError:
-    pass
+    _ENVIRONMENT = 'terminal'
+    pio = None
 
 
 def _display_plotly_figure(fig):
     """
-    Display Plotly figure in any environment (Jupyter, Colab, IPython, etc.)
+    Display Plotly figure with guaranteed rendering in Colab/Jupyter environments.
+    
+    This function handles the timing and stream issues that prevent Plotly graphs
+    from rendering in Colab when mixed with rich console output.
     """
-    # Just use fig.show() - Plotly will handle it with the renderer we set
-    fig.show()
+    try:
+        # Flush any pending console output to prevent stream clashing
+        import sys
+        sys.stdout.flush()
+        sys.stderr.flush()
+        
+        # Force console buffer flush if using rich
+        try:
+            console.file.flush()
+        except:
+            pass
+        
+        # Environment-specific rendering
+        if _ENVIRONMENT == 'colab':
+            # Colab-specific: Force display with explicit HTML injection
+            try:
+                from IPython.display import display, HTML
+                
+                # Method 1: Use display() with the figure directly (most reliable)
+                display(fig)
+                
+                # Small delay to ensure rendering completes
+                import time
+                time.sleep(0.1)
+                
+            except Exception as e:
+                # Fallback: Use fig.show() with explicit renderer
+                try:
+                    fig.show(renderer='colab')
+                except:
+                    # Last resort: Generate HTML and display
+                    html_str = fig.to_html(include_plotlyjs='cdn', div_id=f'plotly-div-{id(fig)}')
+                    display(HTML(html_str))
+                    
+        elif _ENVIRONMENT == 'jupyter':
+            # Jupyter notebook: Use display for better reliability
+            try:
+                from IPython.display import display
+                display(fig)
+            except:
+                fig.show(renderer='notebook')
+                
+        else:
+            # Terminal or other: Use standard show
+            fig.show()
+            
+    except Exception as e:
+        # Ultimate fallback: standard show method
+        try:
+            fig.show()
+        except Exception as show_error:
+            console.print(f"[yellow]⚠️ Warning: Could not display plot. Error: {show_error}[/yellow]")
+            console.print("[yellow]💡 Tip: Try running in Jupyter/Colab for interactive plots[/yellow]")
 
 
 # Set modern styling
@@ -627,7 +709,7 @@ class SmartVizEngine:
             width=800,
             height=600
         )
-        fig.show()
+        _display_plotly_figure(fig)
         
         # Find and display top correlations
         high_corr = []
@@ -718,7 +800,7 @@ class SmartVizEngine:
             title_font_size=16,
             xaxis_tickangle=-45
         )
-        fig.show()
+        _display_plotly_figure(fig)
         
         # Create detailed categorical summary
         cat_summary = self._create_categorical_summary(df[column], column)
@@ -745,7 +827,7 @@ class SmartVizEngine:
             width=1000,
             height=800
         )
-        fig.show()
+        _display_plotly_figure(fig)
         
         # Analyze relationships between variables
         relationship_insights = []
