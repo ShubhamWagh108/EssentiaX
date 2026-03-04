@@ -1,6 +1,75 @@
 # EssentiaX Version History
 
-## v1.1.4 (Current) - March 4, 2026
+## v1.1.5 (Current) - March 4, 2026
+**Major Feature: Professional Analytics Visualizations (YouTube-Style)**
+
+### Added
+- 🎨 **NEW MODULE**: `pro_analytics_viz.py` - Professional analytics visualizations
+- ✨ **3D Bubble Scatter** - YouTube-style structure analytics with bubble sizes and color gradients
+- ✨ **Sunburst Hierarchy Charts** - Interactive nested circular charts for hierarchical data
+- ✨ **Professional Correlation Heatmap** - Annotated heatmaps with Red-Blue diverging colors
+- ✨ **Temporal Trend Bubble** - Time series visualization with bubble scatter and color coding
+- ✨ **Scatter Matrix Pro (SPLOM)** - Multi-variable all-vs-all comparison with color coding
+- ✨ **Distribution Histogram Pro** - Professional histograms with mean/median lines and statistics
+- ✨ **Category Bar Chart Pro** - Gradient color bars with value annotations
+- ✨ **Complete Analytics Dashboard** - Auto-generates comprehensive analytics in one line
+- 🎨 **Dark Theme** - Professional dark theme optimized for presentations
+- 📚 **PRO_ANALYTICS_DEMO.py** - Complete demo with sample YouTube-style data
+- 📚 **PRO_ANALYTICS_GUIDE.md** - Comprehensive guide with examples and best practices
+
+### Features
+- 🎯 **8 Professional Visualization Types** - Production-ready charts
+- 🌙 **Dark Theme Optimized** - Beautiful dark backgrounds like YouTube Analytics
+- 🎨 **Color Gradients** - Plasma, Viridis, and custom color schemes
+- 📊 **Interactive** - Zoom, pan, hover, drill-down capabilities
+- 💎 **Production-Ready** - Professional styling and annotations
+- 🔄 **Auto Dashboard** - Automatically creates relevant visualizations
+- 🎭 **Customizable** - Full control over colors, themes, and styling
+
+### Technical Details
+- All visualizations use Plotly for interactivity
+- Compatible with Colab, Jupyter, and terminal environments
+- Stream cleanup for reliable rendering
+- Professional color schemes and gradients
+- Optimized for large datasets
+
+### Use Cases
+- YouTube/Social Media Analytics
+- E-commerce Performance Dashboards
+- Business Intelligence Reports
+- Scientific Data Visualization
+- Marketing Analytics
+- Product Analytics
+
+### API
+```python
+from essentiax.visuals.pro_analytics_viz import (
+    create_3d_bubble_scatter,
+    create_sunburst_hierarchy,
+    create_correlation_heatmap_pro,
+    create_temporal_trend_bubble,
+    create_scatter_matrix_pro,
+    create_distribution_histogram_pro,
+    create_category_bar_pro,
+    pro_analytics_dashboard
+)
+```
+
+### Performance
+- ⚡ Optimized for datasets up to 10,000 rows
+- ⚡ Sampling recommended for larger datasets
+- ⚡ Interactive rendering with minimal lag
+
+### Compatibility
+- ✅ Google Colab
+- ✅ Jupyter Notebook
+- ✅ JupyterLab
+- ✅ IPython Terminal
+- ✅ Python Scripts
+
+---
+
+## v1.1.4 - March 4, 2026
 **Critical Fix: Rich Progress + Plotly Coexistence in Colab**
 
 ### Fixed
@@ -336,6 +405,6 @@ from essentiax.visuals import smart_viz
 
 ---
 
-**Current Version**: 1.1.4  
-**Latest Stable**: 1.1.4  
-**Recommended**: 1.1.4 ⭐ (Fixes Rich + Plotly coexistence in Colab)
+**Current Version**: 1.1.5  
+**Latest Stable**: 1.1.5  
+**Recommended**: 1.1.5 ⭐ (Professional Analytics Visualizations + All Previous Fixes)
