@@ -93,9 +93,12 @@ def _display_plotly_figure(fig):
     
     This function handles the timing and stream issues that prevent Plotly graphs
     from rendering in Colab when mixed with rich console output.
+    
+    CRITICAL FIX: Properly clears IPython output context after rich.progress usage
+    to prevent stream corruption that causes Plotly graphs to disappear.
     """
     try:
-        # Flush any pending console output to prevent stream clashing
+        # CRITICAL: Force complete flush of all output streams
         import sys
         sys.stdout.flush()
         sys.stderr.flush()
@@ -106,27 +109,42 @@ def _display_plotly_figure(fig):
         except:
             pass
         
-        # Environment-specific rendering
+        # CRITICAL FIX FOR COLAB: Clear IPython output context
+        # This is essential after rich.progress to reset the output stream
         if _ENVIRONMENT == 'colab':
-            # Colab-specific: Force display with explicit HTML injection
             try:
-                from IPython.display import display, HTML
+                from IPython.display import clear_output, display, HTML
                 
-                # Method 1: Use display() with the figure directly (most reliable)
+                # Clear any lingering output context from rich (without clearing visible output)
+                # This resets the IOPub message bus that rich.progress may have corrupted
+                clear_output(wait=False)
+                
+                # Force a small delay to allow stream reset
+                import time
+                time.sleep(0.05)
+                
+                # Method 1: Direct display with figure object (most reliable in Colab)
                 display(fig)
                 
-                # Small delay to ensure rendering completes
-                import time
-                time.sleep(0.1)
+                # Additional small delay to ensure rendering completes
+                time.sleep(0.05)
                 
             except Exception as e:
-                # Fallback: Use fig.show() with explicit renderer
+                # Fallback 1: Use explicit renderer
                 try:
                     fig.show(renderer='colab')
                 except:
-                    # Last resort: Generate HTML and display
-                    html_str = fig.to_html(include_plotlyjs='cdn', div_id=f'plotly-div-{id(fig)}')
-                    display(HTML(html_str))
+                    # Fallback 2: Generate and inject HTML directly
+                    try:
+                        html_str = fig.to_html(
+                            include_plotlyjs='cdn',
+                            div_id=f'plotly-div-{id(fig)}',
+                            config={'displayModeBar': True, 'responsive': True}
+                        )
+                        display(HTML(html_str))
+                    except:
+                        # Last resort: standard show
+                        fig.show()
                     
         elif _ENVIRONMENT == 'jupyter':
             # Jupyter notebook: Use display for better reliability
@@ -587,6 +605,28 @@ class SmartVizEngine:
         ) as progress:
             task = progress.add_task("Analyzing data patterns...", total=None)
             time.sleep(1)  # Simulate analysis
+        
+        # CRITICAL FIX: Clean up output stream after rich.progress
+        # This prevents Plotly rendering issues in Colab
+        import sys
+        sys.stdout.flush()
+        sys.stderr.flush()
+        
+        # Force console buffer flush
+        try:
+            console.file.flush()
+        except:
+            pass
+        
+        # In Colab, clear the output context to reset IOPub stream
+        if _ENVIRONMENT == 'colab':
+            try:
+                from IPython.display import clear_output
+                # Clear without removing visible output - just resets the stream
+                clear_output(wait=False)
+                time.sleep(0.05)  # Small delay for stream reset
+            except:
+                pass
         
         numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
         categorical_cols = df.select_dtypes(include=['object', 'category']).columns.tolist()

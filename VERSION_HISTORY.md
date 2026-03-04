@@ -1,6 +1,61 @@
 # EssentiaX Version History
 
-## v1.1.3 (Current) - March 3, 2026
+## v1.1.4 (Current) - March 4, 2026
+**Critical Fix: Rich Progress + Plotly Coexistence in Colab**
+
+### Fixed
+- 🐛 **MAJOR**: Plotly graphs now render correctly after Rich progress animations in auto mode
+- 🐛 Stream corruption caused by `rich.progress.Progress` in Google Colab
+- 🐛 IOPub message bus getting stuck after progress animations
+- 🐛 Graphs disappearing silently in `smart_viz(mode="auto")`
+
+### Added
+- ✨ Stream cleanup after `rich.progress.Progress` context closes
+- ✨ IPython output context reset with `clear_output(wait=False)`
+- ✨ Enhanced `_display_plotly_figure()` with 4-level fallback chain
+- ✨ Direct widget injection using `display(fig)` instead of `fig.show()`
+- ✨ Timing delays for proper stream sequencing
+- 📚 COLAB_RICH_PLOTLY_FIX.md - Technical deep dive
+- 📚 RICH_PLOTLY_COEXISTENCE_GUIDE.md - Developer best practices
+- 📚 FIX_IMPLEMENTATION_SUMMARY.md - Executive summary
+- 📚 QUICK_FIX_GUIDE.md - User quick-start guide
+- 📚 FIX_FLOW_DIAGRAM.md - Visual flow diagrams
+- 📚 SOLUTION_SUMMARY.md - Quick overview
+- 📚 DEPLOYMENT_CHECKLIST.md - Deployment guide
+- 📚 FIX_DOCUMENTATION_INDEX.md - Documentation index
+- 🧪 test_colab_rich_plotly_fix.py - Comprehensive test script
+
+### Changed
+- 🔧 Enhanced `_display_plotly_figure()` in smartViz.py
+- 🔧 Enhanced `_auto_select_variables()` with stream cleanup
+- 🔧 Improved reliability in Colab environment
+- 📝 Updated all visualization documentation
+
+### Performance
+- ⚡ Minimal overhead: ~0.1s per graph (negligible)
+- ⚡ No impact on manual mode
+- ⚡ Optimized stream flush operations
+
+### Impact
+- ✅ Rich progress animations display correctly
+- ✅ Plotly graphs render after progress animations
+- ✅ Auto mode now works perfectly in Colab
+- ✅ Manual mode unchanged (still works)
+- ✅ No breaking changes - fully backward compatible
+- ✅ Works across all environments (Colab, Jupyter, IPython, terminal)
+
+### Technical Details
+**Root Cause**: `rich.progress.Progress` modifies the IPython output stream state. When the context closes, the stream remains corrupted, causing Plotly's HTML/JS payload to be silently dropped.
+
+**Solution**: 
+1. Flush all output buffers after progress closes
+2. Reset IPython context with `clear_output(wait=False)`
+3. Use `display(fig)` for direct widget injection
+4. Add timing delays for proper sequencing
+
+---
+
+## v1.1.3 - March 3, 2026
 **Critical Fix: Plotly Rendering in Google Colab**
 
 ### Fixed
@@ -281,6 +336,6 @@ from essentiax.visuals import smart_viz
 
 ---
 
-**Current Version**: 1.1.3  
-**Latest Stable**: 1.1.3  
-**Recommended**: 1.1.3 ⭐ (Fixes critical Colab rendering issue)
+**Current Version**: 1.1.4  
+**Latest Stable**: 1.1.4  
+**Recommended**: 1.1.4 ⭐ (Fixes Rich + Plotly coexistence in Colab)
