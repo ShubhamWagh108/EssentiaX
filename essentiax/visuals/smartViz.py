@@ -909,70 +909,459 @@ class SmartVizEngine:
         
         console.print("\n" + "─" * 80 + "\n")
         self.plot_count += 1
+    
+    def _create_basic_visualizations(self, df, selected_vars, target):
+        """Create basic 2D visualizations"""
+        # 1. Distributions
+        if selected_vars['numeric']:
+            console.print("📊 [bold]Generating Distribution Plots...[/bold]")
+            for col in selected_vars['numeric'][:6]:
+                self._plot_distribution(df, col, interactive=True)
+        
+        # 2. Correlation
+        if len(selected_vars['numeric']) > 1:
+            console.print("\n🔥 [bold]Generating Correlation Analysis...[/bold]")
+            self._plot_correlation_heatmap(df, selected_vars['numeric'])
+        
+        # 3. Categorical
+        if selected_vars['categorical']:
+            console.print("\n🏷️ [bold]Generating Categorical Analysis...[/bold]")
+            for col in selected_vars['categorical'][:4]:
+                self._plot_categorical(df, col, target)
+        
+        # 4. Scatter matrix
+        if len(selected_vars['numeric']) >= 3:
+            console.print("\n🎯 [bold]Generating Multi-Variable Analysis...[/bold]")
+            self._plot_scatter_matrix(df, selected_vars['numeric'][:6])
+    
+    def _create_advanced_visualizations(self, df, selected_vars, dark_theme, target):
+        """Create advanced 3D professional visualizations"""
+        console.print("🎨 [bold magenta]Creating Advanced 3D Visualizations...[/bold magenta]\n")
+        
+        numeric_cols = selected_vars['numeric']
+        categorical_cols = selected_vars['categorical']
+        
+        # 1. 3D BUBBLE SCATTER (if we have 3+ numeric columns)
+        if len(numeric_cols) >= 3:
+            self._create_3d_bubble_scatter(df, numeric_cols, dark_theme)
+        
+        # 2. SUNBURST HIERARCHY (if we have categorical columns)
+        if len(categorical_cols) >= 2 and len(numeric_cols) >= 1:
+            self._create_sunburst_chart(df, categorical_cols, numeric_cols, dark_theme)
+        
+        # 3. PROFESSIONAL CORRELATION HEATMAP
+        if len(numeric_cols) >= 3:
+            self._create_correlation_heatmap_pro(df, numeric_cols, dark_theme)
+        
+        # 4. SCATTER MATRIX PRO with color coding
+        if len(numeric_cols) >= 4:
+            self._create_scatter_matrix_pro(df, numeric_cols, dark_theme)
+        
+        # 5. DISTRIBUTION with statistics (for top numeric columns)
+        if len(numeric_cols) >= 1:
+            for col in numeric_cols[:3]:
+                self._create_distribution_pro(df, col, dark_theme)
+    
+    def _create_3d_bubble_scatter(self, df, numeric_cols, dark_theme):
+        """Create 3D bubble scatter plot"""
+        console.print("\n🎨 [bold cyan]1. 3D Bubble Scatter - Structure Analytics[/bold cyan]")
+        
+        # Select best 3 columns for x, y, z
+        x_col, y_col, z_col = numeric_cols[0], numeric_cols[1], numeric_cols[2]
+        size_col = numeric_cols[0] if len(numeric_cols) > 0 else None
+        color_col = numeric_cols[1] if len(numeric_cols) > 1 else None
+        
+        # Prepare data
+        plot_df = df[[x_col, y_col, z_col]].copy()
+        plot_df['size'] = df[size_col] if size_col else 20
+        plot_df['size_normalized'] = (plot_df['size'] - plot_df['size'].min()) / (plot_df['size'].max() - plot_df['size'].min() + 1e-10) * 50 + 10
+        plot_df['color'] = df[color_col] if color_col else plot_df[y_col]
+        
+        # Create figure
+        fig = go.Figure(data=[go.Scatter3d(
+            x=plot_df[x_col],
+            y=plot_df[y_col],
+            z=plot_df[z_col],
+            mode='markers',
+            marker=dict(
+                size=plot_df['size_normalized'],
+                color=plot_df['color'],
+                colorscale='Plasma' if dark_theme else 'Viridis',
+                showscale=True,
+                colorbar=dict(
+                    title=color_col if color_col else y_col,
+                    titlefont=dict(color='white' if dark_theme else 'black'),
+                    tickfont=dict(color='white' if dark_theme else 'black')
+                ),
+                line=dict(width=0.5, color='rgba(255,255,255,0.3)' if dark_theme else 'rgba(0,0,0,0.3)'),
+                opacity=0.8
+            ),
+            text=[f"{x_col}: {x:.2f}<br>{y_col}: {y:.2f}<br>{z_col}: {z:.2f}" 
+                  for x, y, z in zip(plot_df[x_col], plot_df[y_col], plot_df[z_col])],
+            hovertemplate='<b>%{text}</b><extra></extra>'
+        )])
+        
+        # Styling
+        bgcolor = '#1a1a1a' if dark_theme else '#ffffff'
+        gridcolor = '#333333' if dark_theme else '#e0e0e0'
+        textcolor = 'white' if dark_theme else 'black'
+        
+        fig.update_layout(
+            title=dict(text=f"3D Structure Analytics: {x_col} × {y_col} × {z_col}", 
+                      font=dict(size=20, color=textcolor)),
+            scene=dict(
+                xaxis=dict(title=x_col, backgroundcolor=bgcolor, gridcolor=gridcolor, 
+                          titlefont=dict(color=textcolor)),
+                yaxis=dict(title=y_col, backgroundcolor=bgcolor, gridcolor=gridcolor, 
+                          titlefont=dict(color=textcolor)),
+                zaxis=dict(title=z_col, backgroundcolor=bgcolor, gridcolor=gridcolor, 
+                          titlefont=dict(color=textcolor)),
+                bgcolor=bgcolor
+            ),
+            paper_bgcolor=bgcolor,
+            plot_bgcolor=bgcolor,
+            font=dict(color=textcolor),
+            width=1000,
+            height=700
+        )
+        
+        _display_plotly_figure(fig)
+        
+        # Statistical Summary
+        stats_table = Table(show_header=True, header_style="bold magenta", box=box.ROUNDED)
+        stats_table.add_column("Variable", style="cyan")
+        stats_table.add_column("Mean", style="green")
+        stats_table.add_column("Std", style="green")
+        stats_table.add_column("Min", style="yellow")
+        stats_table.add_column("Max", style="yellow")
+        
+        for col in [x_col, y_col, z_col]:
+            stats_table.add_row(
+                col,
+                f"{df[col].mean():.2f}",
+                f"{df[col].std():.2f}",
+                f"{df[col].min():.2f}",
+                f"{df[col].max():.2f}"
+            )
+        
+        console.print(Panel(stats_table, title="📊 Statistical Summary", border_style="magenta"))
+        console.print("✅ [green]3D Bubble Scatter created![/green]\n")
+        self.plot_count += 1
+    
+    def _create_sunburst_chart(self, df, categorical_cols, numeric_cols, dark_theme):
+        """Create sunburst hierarchy chart"""
+        console.print("\n☀️ [bold cyan]2. Sunburst Hierarchy - Category Distribution[/bold cyan]")
+        
+        # Select columns
+        path_cols = categorical_cols[:3] if len(categorical_cols) >= 3 else categorical_cols[:2]
+        value_col = numeric_cols[0]
+        color_col = numeric_cols[1] if len(numeric_cols) > 1 else numeric_cols[0]
+        
+        # Prepare data
+        plot_df = df[path_cols + [value_col, color_col]].copy()
+        
+        fig = px.sunburst(
+            plot_df,
+            path=path_cols,
+            values=value_col,
+            color=color_col,
+            color_continuous_scale='Plasma' if dark_theme else 'Viridis',
+            title=f"Hierarchical Distribution: {' > '.join(path_cols)}"
+        )
+        
+        # Styling
+        bgcolor = '#1a1a1a' if dark_theme else '#ffffff'
+        textcolor = 'white' if dark_theme else 'black'
+        
+        fig.update_layout(
+            paper_bgcolor=bgcolor,
+            plot_bgcolor=bgcolor,
+            font=dict(color=textcolor, size=12),
+            title=dict(font=dict(size=20, color=textcolor)),
+            width=900,
+            height=900
+        )
+        
+        _display_plotly_figure(fig)
+        
+        # Distribution Insights
+        insights = []
+        for col in path_cols:
+            unique_count = df[col].nunique()
+            top_category = df[col].value_counts().index[0]
+            top_pct = (df[col].value_counts().iloc[0] / len(df)) * 100
+            insights.append(f"📊 **{col}**: {unique_count} categories, top is '{top_category}' ({top_pct:.1f}%)")
+        
+        insights_text = Text()
+        for insight in insights:
+            insights_text.append(f"{insight}\n", style="cyan")
+        
+        console.print(Panel(insights_text, title="🔍 Distribution Insights", border_style="cyan"))
+        console.print("✅ [green]Sunburst chart created![/green]\n")
+        self.plot_count += 1
+    
+    def _create_correlation_heatmap_pro(self, df, numeric_cols, dark_theme):
+        """Create professional correlation heatmap"""
+        console.print("\n🔥 [bold cyan]3. Correlation Heatmap Pro - Feature Relationships[/bold cyan]")
+        
+        # Limit columns
+        cols = numeric_cols[:10]
+        corr_matrix = df[cols].corr()
+        
+        fig = go.Figure(data=go.Heatmap(
+            z=corr_matrix.values,
+            x=corr_matrix.columns,
+            y=corr_matrix.index,
+            colorscale='RdBu_r',
+            zmid=0,
+            text=corr_matrix.values,
+            texttemplate='%{text:.2f}',
+            textfont={"size": 10},
+            colorbar=dict(
+                title="Correlation",
+                titlefont=dict(color='white' if dark_theme else 'black'),
+                tickfont=dict(color='white' if dark_theme else 'black')
+            )
+        ))
+        
+        # Styling
+        bgcolor = '#1a1a1a' if dark_theme else '#ffffff'
+        gridcolor = '#333333' if dark_theme else '#e0e0e0'
+        textcolor = 'white' if dark_theme else 'black'
+        
+        fig.update_layout(
+            title=dict(text="Feature Correlation Matrix", font=dict(size=20, color=textcolor)),
+            paper_bgcolor=bgcolor,
+            plot_bgcolor=bgcolor,
+            font=dict(color=textcolor),
+            xaxis=dict(tickangle=-45, tickfont=dict(color=textcolor)),
+            yaxis=dict(tickfont=dict(color=textcolor)),
+            width=900,
+            height=800
+        )
+        
+        _display_plotly_figure(fig)
+        
+        # Find strong correlations
+        strong_corr = []
+        for i in range(len(corr_matrix.columns)):
+            for j in range(i+1, len(corr_matrix.columns)):
+                corr_val = corr_matrix.iloc[i, j]
+                if abs(corr_val) >= 0.5:
+                    var1, var2 = corr_matrix.columns[i], corr_matrix.columns[j]
+                    strong_corr.append((var1, var2, corr_val))
+        
+        if strong_corr:
+            corr_table = Table(show_header=True, header_style="bold blue", box=box.ROUNDED)
+            corr_table.add_column("Variable 1", style="cyan")
+            corr_table.add_column("Variable 2", style="cyan")
+            corr_table.add_column("Correlation", style="bold green")
+            
+            for var1, var2, corr_val in strong_corr[:5]:
+                corr_table.add_row(var1, var2, f"{corr_val:.3f}")
+            
+            console.print(Panel(corr_table, title="🔍 Strong Correlations (|r| ≥ 0.5)", border_style="blue"))
+        
+        console.print("✅ [green]Correlation heatmap created![/green]\n")
+        self.plot_count += 1
+    
+    def _create_scatter_matrix_pro(self, df, numeric_cols, dark_theme):
+        """Create professional scatter matrix"""
+        console.print("\n🎯 [bold cyan]4. Scatter Matrix Pro - Multi-Variable Analysis[/bold cyan]")
+        
+        # Limit columns
+        cols = numeric_cols[:5]
+        color_col = numeric_cols[0]
+        
+        fig = px.scatter_matrix(
+            df[cols],
+            dimensions=cols,
+            color=df[color_col],
+            color_continuous_scale='Plasma' if dark_theme else 'Viridis',
+            title="Multi-Variable Scatter Matrix"
+        )
+        
+        # Styling
+        bgcolor = '#1a1a1a' if dark_theme else '#ffffff'
+        textcolor = 'white' if dark_theme else 'black'
+        
+        fig.update_layout(
+            paper_bgcolor=bgcolor,
+            plot_bgcolor=bgcolor,
+            font=dict(color=textcolor, size=10),
+            title=dict(font=dict(size=20, color=textcolor)),
+            width=1200,
+            height=1000
+        )
+        fig.update_traces(diagonal_visible=False, marker=dict(size=4, opacity=0.6))
+        
+        _display_plotly_figure(fig)
+        console.print("✅ [green]Scatter matrix created![/green]\n")
+        self.plot_count += 1
+    
+    def _create_distribution_pro(self, df, column, dark_theme):
+        """Create professional distribution with statistics"""
+        console.print(f"\n📊 [bold cyan]Distribution Analysis: {column}[/bold cyan]")
+        
+        data = df[column].dropna()
+        
+        fig = go.Figure()
+        
+        # Histogram
+        fig.add_trace(go.Histogram(
+            x=data,
+            nbinsx=50,
+            name='Distribution',
+            marker=dict(
+                color='#00d4ff' if dark_theme else '#636EFA',
+                line=dict(color='white' if dark_theme else 'black', width=0.5)
+            ),
+            opacity=0.7
+        ))
+        
+        # Mean line
+        mean_val = data.mean()
+        fig.add_vline(
+            x=mean_val,
+            line_dash="dash",
+            line_color='#ff6b6b' if dark_theme else 'red',
+            annotation_text=f"Mean: {mean_val:.2f}",
+            annotation_position="top"
+        )
+        
+        # Median line
+        median_val = data.median()
+        fig.add_vline(
+            x=median_val,
+            line_dash="dot",
+            line_color='#4ecdc4' if dark_theme else 'green',
+            annotation_text=f"Median: {median_val:.2f}",
+            annotation_position="bottom"
+        )
+        
+        # Styling
+        bgcolor = '#1a1a1a' if dark_theme else '#ffffff'
+        gridcolor = '#333333' if dark_theme else '#e0e0e0'
+        textcolor = 'white' if dark_theme else 'black'
+        
+        fig.update_layout(
+            title=dict(text=f"Distribution: {column}", font=dict(size=20, color=textcolor)),
+            xaxis=dict(title=column, gridcolor=gridcolor, titlefont=dict(color=textcolor), 
+                      tickfont=dict(color=textcolor)),
+            yaxis=dict(title='Count', gridcolor=gridcolor, titlefont=dict(color=textcolor), 
+                      tickfont=dict(color=textcolor)),
+            paper_bgcolor=bgcolor,
+            plot_bgcolor=bgcolor,
+            font=dict(color=textcolor),
+            width=1000,
+            height=600,
+            showlegend=True
+        )
+        
+        _display_plotly_figure(fig)
+        
+        # Statistical Summary
+        stats_table = Table(show_header=True, header_style="bold magenta", box=box.ROUNDED)
+        stats_table.add_column("Statistic", style="cyan")
+        stats_table.add_column("Value", style="bold green")
+        
+        stats_table.add_row("Count", f"{len(data):,}")
+        stats_table.add_row("Mean", f"{mean_val:.2f}")
+        stats_table.add_row("Median", f"{median_val:.2f}")
+        stats_table.add_row("Std Dev", f"{data.std():.2f}")
+        stats_table.add_row("Min", f"{data.min():.2f}")
+        stats_table.add_row("Max", f"{data.max():.2f}")
+        stats_table.add_row("Skewness", f"{stats.skew(data):.3f}")
+        stats_table.add_row("Kurtosis", f"{stats.kurtosis(data):.3f}")
+        
+        console.print(Panel(stats_table, title=f"📊 Statistical Summary: {column}", border_style="magenta"))
+        
+        # Distribution Insights
+        insights = self.insights.analyze_distribution(data, column)
+        insights_text = Text()
+        for insight in insights[:5]:
+            insights_text.append(f"{insight}\n", style="cyan")
+        
+        console.print(Panel(insights_text, title="🔍 Distribution Insights", border_style="cyan"))
+        console.print("─" * 80 + "\n")
+        self.plot_count += 1
 
 
 def smart_viz(
     df: pd.DataFrame,
-    mode: str = "auto",  # "auto" or "manual"
+    mode: str = "auto",
     columns: list = None,
     target: str = None,
-    max_plots: int = 12,
-    interactive: bool = True,
+    viz_type: str = "advanced",  # "basic" or "advanced"
+    dark_theme: bool = True,
     sample_size: int = 10000
 ):
     """
-    🎨 EssentiaX Next-Gen Smart Visualization Engine
+    🎨 EssentiaX Unified Smart Visualization Engine
+    
+    ONE function for all visualizations - basic and advanced 3D analytics
     
     Parameters:
     -----------
     df : pd.DataFrame
         Input dataset
     mode : str
-        "auto" for AI selection, "manual" for user selection
+        "auto" - AI selects variables | "manual" - You specify columns
     columns : list
-        Specific columns to visualize (required for manual mode)
+        Specific columns (required for manual mode)
     target : str
         Target variable for supervised analysis
-    max_plots : int
-        Maximum number of plots to generate
-    interactive : bool
-        Use interactive Plotly plots (True) or static Matplotlib (False)
+    viz_type : str
+        "basic" - Standard 2D plots | "advanced" - Professional 3D analytics
+    dark_theme : bool
+        True - Dark theme (presentation) | False - Light theme (print)
     sample_size : int
         Sample size for large datasets
+        
+    Examples:
+    ---------
+    # Auto mode with advanced 3D visualizations
+    smart_viz(df, mode='auto', viz_type='advanced', dark_theme=True)
+    
+    # Manual mode with specific columns
+    smart_viz(df, mode='manual', columns=['age', 'income'], viz_type='advanced')
+    
+    # Basic 2D visualizations
+    smart_viz(df, mode='auto', viz_type='basic')
     """
     
-    # Initialize the engine
+    # Initialize engine
     engine = SmartVizEngine()
     
-    # Beautiful header
+    # Header
     console.print("\n" + "="*80)
     console.print("🎨 [bold magenta]EssentiaX Smart Visualization Engine[/bold magenta] 🎨", justify="center")
     console.print("="*80)
     
-    # Dataset info panel
-    info_table = Table(show_header=True, header_style="bold blue", box=box.ROUNDED)
-    info_table.add_column("Metric", style="cyan")
-    info_table.add_column("Value", style="bold green")
+    # Visualization Setup Panel
+    setup_table = Table(show_header=True, header_style="bold blue", box=box.ROUNDED)
+    setup_table.add_column("Setting", style="cyan")
+    setup_table.add_column("Value", style="bold green")
     
-    info_table.add_row("Dataset Shape", f"{df.shape[0]:,} × {df.shape[1]}")
-    info_table.add_row("Mode", mode.upper())
-    info_table.add_row("Interactive", "✅ Plotly" if interactive else "📊 Matplotlib")
-    info_table.add_row("Target Variable", target if target else "None")
+    setup_table.add_row("Dataset Shape", f"{df.shape[0]:,} × {df.shape[1]}")
+    setup_table.add_row("Mode", mode.upper())
+    setup_table.add_row("Visualization Type", viz_type.upper())
+    setup_table.add_row("Theme", "🌙 Dark" if dark_theme else "☀️ Light")
+    setup_table.add_row("Target Variable", target if target else "None")
     
-    console.print(Panel(info_table, title="📊 Visualization Setup", border_style="blue"))
+    console.print(Panel(setup_table, title="📊 Visualization Setup", border_style="blue"))
     
     # Sample large datasets
     if len(df) > sample_size:
         df_viz = df.sample(sample_size, random_state=42)
-        console.print(f"\n⚡ [yellow]Sampled {sample_size:,} rows for visualization performance[/yellow]")
+        console.print(f"\n⚡ [yellow]Sampled {sample_size:,} rows for performance[/yellow]")
     else:
         df_viz = df.copy()
     
-    # Variable selection based on mode
+    # Variable selection
     if mode == "auto":
-        selected_vars = engine._auto_select_variables(df_viz, max_plots)
+        selected_vars = engine._auto_select_variables(df_viz, 12)
         
-        # Display selection summary
         summary_table = Table(show_header=True, header_style="bold cyan")
         summary_table.add_column("Category", style="yellow")
         summary_table.add_column("Selected Variables", style="green")
@@ -988,13 +1377,11 @@ def smart_viz(
             console.print("[bold red]❌ Manual mode requires 'columns' parameter![/bold red]")
             return
         
-        # Validate columns
         missing_cols = [col for col in columns if col not in df.columns]
         if missing_cols:
             console.print(f"[bold red]❌ Columns not found: {missing_cols}[/bold red]")
             return
         
-        # Organize manual selection
         numeric_cols = df_viz[columns].select_dtypes(include=[np.number]).columns.tolist()
         categorical_cols = df_viz[columns].select_dtypes(include=['object', 'category']).columns.tolist()
         
@@ -1006,44 +1393,30 @@ def smart_viz(
         
         console.print(f"✅ [green]Manual selection: {len(columns)} variables[/green]")
     
-    # Start visualization process
+    # Start visualization
     console.print("\n🎬 [bold cyan]Starting Visualization Process...[/bold cyan]\n")
     
-    # 1. Numeric distributions
-    if selected_vars['numeric']:
-        console.print("📊 [bold]Generating Distribution Plots...[/bold]")
-        for col in selected_vars['numeric'][:6]:  # Limit to prevent overload
-            engine._plot_distribution(df_viz, col, interactive)
+    if viz_type == "advanced":
+        # ADVANCED 3D VISUALIZATIONS
+        engine._create_advanced_visualizations(df_viz, selected_vars, dark_theme, target)
+    else:
+        # BASIC 2D VISUALIZATIONS
+        engine._create_basic_visualizations(df_viz, selected_vars, target)
     
-    # 2. Correlation analysis
-    if len(selected_vars['numeric']) > 1:
-        console.print("\n🔥 [bold]Generating Correlation Analysis...[/bold]")
-        engine._plot_correlation_heatmap(df_viz, selected_vars['numeric'])
-    
-    # 3. Categorical analysis
-    if selected_vars['categorical']:
-        console.print("\n🏷️ [bold]Generating Categorical Analysis...[/bold]")
-        for col in selected_vars['categorical'][:4]:  # Limit categorical plots
-            engine._plot_categorical(df_viz, col, target)
-    
-    # 4. Multi-variable relationships
-    if len(selected_vars['numeric']) >= 3:
-        console.print("\n🎯 [bold]Generating Multi-Variable Analysis...[/bold]")
-        engine._plot_scatter_matrix(df_viz, selected_vars['numeric'][:6])
-    
-    # Final summary
+    # Final Summary
     console.print("\n" + "="*80)
     summary_panel = Panel(
         f"✨ **Visualization Complete!**\n\n"
-        f"📊 Total Plots Generated: {engine.plot_count}\n"
-        f"🎯 Variables Analyzed: {len(selected_vars['numeric']) + len(selected_vars['categorical'])}\n"
-        f"🔍 Insights Provided: {engine.plot_count * 2}+\n"
-        f"⚡ Mode Used: {mode.upper()}\n\n"
+        f"📊 Total Plots: {engine.plot_count}\n"
+        f"🎯 Variables: {len(selected_vars['numeric']) + len(selected_vars['categorical'])}\n"
+        f"🔍 Insights: {engine.plot_count * 2}+\n"
+        f"⚡ Type: {viz_type.upper()}\n"
+        f"🎨 Theme: {'Dark' if dark_theme else 'Light'}\n\n"
         f"💡 **Next Steps:**\n"
-        f"• Use insights for feature engineering\n"
-        f"• Apply data cleaning based on patterns\n"
-        f"• Consider correlations for model selection",
-        title="🎉 EssentiaX Visualization Summary",
+        f"• Feature engineering\n"
+        f"• Data cleaning\n"
+        f"• Model selection",
+        title="🎉 Visualization Summary",
         border_style="magenta"
     )
     console.print(summary_panel)
