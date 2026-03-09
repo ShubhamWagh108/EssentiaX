@@ -1,6 +1,76 @@
 # EssentiaX Version History
 
-## v1.1.5 (Current) - March 4, 2026
+## v1.1.6 (Current) - March 4, 2026
+**Major Refactor: Unified Visualization Function**
+
+### Changed (Breaking)
+- 🔄 **UNIFIED FUNCTION**: Merged `smart_viz()` and `pro_analytics_dashboard()` into ONE function
+- 🔄 Removed separate `pro_analytics_viz` module functions
+- 🔄 Simplified API - ONE function for everything
+
+### Added
+- ✨ **viz_type parameter**: Choose 'basic' (2D) or 'advanced' (3D)
+- ✨ **Advanced 3D Mode**: Creates 4+ professional visualizations:
+  - 3D Bubble Scatter (structure analytics)
+  - Sunburst Hierarchy (category distribution)
+  - Correlation Heatmap Pro (feature relationships)
+  - Scatter Matrix Pro (multi-variable analysis)
+  - Distribution Pro (with statistics)
+- ✨ **Rich Console Output**:
+  - Visualization Setup panel
+  - Statistical Summary tables (Count, Mean, Median, Std, Min, Max, Skewness, Kurtosis)
+  - Distribution Insights (Symmetric/Skewed, Outliers, Central Tendency)
+  - Visualization Summary
+- ✨ **Dark Theme**: Professional dark theme for presentations
+- ✨ **Light Theme**: Traditional light theme for reports
+- 📚 **UNIFIED_VIZ_DEMO.py** - Demo showing unified function
+- 📚 **UNIFIED_VIZ_GUIDE.md** - Comprehensive guide
+
+### Migration Guide
+```python
+# OLD (v1.1.5)
+from essentiax.visuals.pro_analytics_viz import pro_analytics_dashboard
+pro_analytics_dashboard(df, config='auto', dark_theme=True)
+
+# NEW (v1.1.6)
+from essentiax.visuals import smart_viz
+smart_viz(df, mode='auto', viz_type='advanced', dark_theme=True)
+```
+
+### API
+```python
+smart_viz(
+    df,
+    mode='auto',           # 'auto' or 'manual'
+    columns=None,          # List for manual mode
+    target=None,           # Target variable
+    viz_type='advanced',   # 'advanced' (3D) or 'basic' (2D)
+    dark_theme=True        # True (dark) or False (light)
+)
+```
+
+### Benefits
+- ✅ **Simplicity**: ONE function to remember
+- ✅ **Flexibility**: Auto/manual, basic/advanced, dark/light
+- ✅ **Professional**: Production-ready 3D visualizations
+- ✅ **Comprehensive**: Statistics + insights + charts
+- ✅ **Beautiful**: Dark theme + rich console output
+
+### Performance
+- ⚡ Same performance as v1.1.5
+- ⚡ Optimized for datasets up to 10,000 rows
+- ⚡ Automatic sampling for larger datasets
+
+### Compatibility
+- ✅ Google Colab
+- ✅ Jupyter Notebook
+- ✅ JupyterLab
+- ✅ IPython Terminal
+- ✅ Python Scripts
+
+---
+
+## v1.1.5 - March 4, 2026
 **Major Feature: Professional Analytics Visualizations (YouTube-Style)**
 
 ### Added
@@ -405,6 +475,6 @@ from essentiax.visuals import smart_viz
 
 ---
 
-**Current Version**: 1.1.5  
-**Latest Stable**: 1.1.5  
-**Recommended**: 1.1.5 ⭐ (Professional Analytics Visualizations + All Previous Fixes)
+**Current Version**: 1.1.6  
+**Latest Stable**: 1.1.6  
+**Recommended**: 1.1.6 ⭐ (Unified Function - ONE smart_viz() for Everything)

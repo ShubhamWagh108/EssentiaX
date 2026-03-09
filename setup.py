@@ -7,7 +7,7 @@ long_description = (here / "README.md").read_text(encoding="utf-8")
 
 setup(
     name="Essentiax",
-    version="1.1.5",  # Feature: Professional YouTube-style analytics visualizations
+    version="1.1.6",  # Refactor: Unified smart_viz() - ONE function for all visualizations
     author="Shubham Wagh",
     author_email="waghshubham197@gmail.com",
     description="Complete ML automation platform with AutoML, Feature Engineering, AI Insights, and Interactive Dashboards.",
