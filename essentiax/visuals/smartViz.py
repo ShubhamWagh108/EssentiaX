@@ -654,6 +654,8 @@ class SmartVizEngine:
             cat_scores = {}
             for col in categorical_cols:
                 cardinality = df[col].nunique()
+                if cardinality > 50:
+                    continue  # Skip high-cardinality columns (title, show_id, etc.)
                 completeness = (1 - df[col].isnull().sum() / len(df))
                 # Prefer medium cardinality (2-20 categories)
                 cardinality_score = 1 / (1 + abs(cardinality - 10)) if cardinality <= 50 else 0.1
@@ -935,354 +937,691 @@ class SmartVizEngine:
             self._plot_scatter_matrix(df, selected_vars['numeric'][:6])
     
     def _create_advanced_visualizations(self, df, selected_vars, dark_theme, target):
-        """Create advanced 3D professional visualizations"""
+        """Create advanced 3D professional visualizations — 5 unique chart types"""
         console.print("🎨 [bold magenta]Creating Advanced 3D Visualizations...[/bold magenta]\n")
         
         numeric_cols = selected_vars['numeric']
         categorical_cols = selected_vars['categorical']
+        charts_created = 0
         
-        # 1. 3D BUBBLE SCATTER (if we have 3+ numeric columns)
-        if len(numeric_cols) >= 3:
-            self._create_3d_bubble_scatter(df, numeric_cols, dark_theme)
-        
-        # 2. SUNBURST HIERARCHY (if we have categorical columns)
-        if len(categorical_cols) >= 2 and len(numeric_cols) >= 1:
-            self._create_sunburst_chart(df, categorical_cols, numeric_cols, dark_theme)
-        
-        # 3. PROFESSIONAL CORRELATION HEATMAP
-        if len(numeric_cols) >= 3:
-            self._create_correlation_heatmap_pro(df, numeric_cols, dark_theme)
-        
-        # 4. SCATTER MATRIX PRO with color coding
-        if len(numeric_cols) >= 4:
-            self._create_scatter_matrix_pro(df, numeric_cols, dark_theme)
-        
-        # 5. DISTRIBUTION with statistics (for top numeric columns)
+        # 1. 3D SURFACE DENSITY PLOT (works with ≥1 numeric)
         if len(numeric_cols) >= 1:
-            for col in numeric_cols[:3]:
-                self._create_distribution_pro(df, col, dark_theme)
+            try:
+                self._create_3d_surface_density(df, numeric_cols, dark_theme)
+                charts_created += 1
+            except Exception as e:
+                console.print(f"[yellow]⚠️ 3D Surface skipped: {e}[/yellow]\n")
+        
+        # 2. ANIMATED TREEMAP (works with ≥1 categorical)
+        if len(categorical_cols) >= 1:
+            try:
+                self._create_treemap_chart(df, categorical_cols, numeric_cols, dark_theme)
+                charts_created += 1
+            except Exception as e:
+                console.print(f"[yellow]⚠️ Treemap skipped: {e}[/yellow]\n")
+        
+        # 3. 3D RADAR / SPIDER CHART (works with ≥3 numeric)
+        if len(numeric_cols) >= 3:
+            try:
+                self._create_3d_radar_chart(df, numeric_cols, categorical_cols, dark_theme)
+                charts_created += 1
+            except Exception as e:
+                console.print(f"[yellow]⚠️ Radar chart skipped: {e}[/yellow]\n")
+        
+        # 4. INTERACTIVE PARALLEL COORDINATES (works with ≥2 numeric)
+        if len(numeric_cols) >= 2:
+            try:
+                self._create_parallel_coordinates(df, numeric_cols, categorical_cols, dark_theme)
+                charts_created += 1
+            except Exception as e:
+                console.print(f"[yellow]⚠️ Parallel coordinates skipped: {e}[/yellow]\n")
+        
+        # 5. RIDGELINE 3D DISTRIBUTION (works with ≥1 numeric + ≥1 categorical)
+        if len(numeric_cols) >= 1 and len(categorical_cols) >= 1:
+            try:
+                self._create_ridgeline_3d(df, numeric_cols, categorical_cols, dark_theme)
+                charts_created += 1
+            except Exception as e:
+                console.print(f"[yellow]⚠️ Ridgeline chart skipped: {e}[/yellow]\n")
+        
+        # FALLBACK: If very few charts were created, add distribution plots
+        if charts_created < 3 and len(numeric_cols) >= 1:
+            for col in numeric_cols[:max(1, 3 - charts_created)]:
+                try:
+                    self._create_distribution_pro(df, col, dark_theme)
+                except Exception:
+                    pass
     
-    def _create_3d_bubble_scatter(self, df, numeric_cols, dark_theme):
-        """Create 3D bubble scatter plot"""
-        console.print("\n🎨 [bold cyan]1. 3D Bubble Scatter - Structure Analytics[/bold cyan]")
-        
-        # Select best 3 columns for x, y, z
-        x_col, y_col, z_col = numeric_cols[0], numeric_cols[1], numeric_cols[2]
-        size_col = numeric_cols[0] if len(numeric_cols) > 0 else None
-        color_col = numeric_cols[1] if len(numeric_cols) > 1 else None
-        
-        # Prepare data
-        plot_df = df[[x_col, y_col, z_col]].copy()
-        plot_df['size'] = df[size_col] if size_col else 20
-        plot_df['size_normalized'] = (plot_df['size'] - plot_df['size'].min()) / (plot_df['size'].max() - plot_df['size'].min() + 1e-10) * 50 + 10
-        plot_df['color'] = df[color_col] if color_col else plot_df[y_col]
-        
-        # Create figure
-        fig = go.Figure(data=[go.Scatter3d(
-            x=plot_df[x_col],
-            y=plot_df[y_col],
-            z=plot_df[z_col],
-            mode='markers',
-            marker=dict(
-                size=plot_df['size_normalized'],
-                color=plot_df['color'],
-                colorscale='Plasma' if dark_theme else 'Viridis',
-                showscale=True,
-                colorbar=dict(
-                    title=color_col if color_col else y_col,
-                    titlefont=dict(color='white' if dark_theme else 'black'),
-                    tickfont=dict(color='white' if dark_theme else 'black')
-                ),
-                line=dict(width=0.5, color='rgba(255,255,255,0.3)' if dark_theme else 'rgba(0,0,0,0.3)'),
-                opacity=0.8
-            ),
-            text=[f"{x_col}: {x:.2f}<br>{y_col}: {y:.2f}<br>{z_col}: {z:.2f}" 
-                  for x, y, z in zip(plot_df[x_col], plot_df[y_col], plot_df[z_col])],
-            hovertemplate='<b>%{text}</b><extra></extra>'
-        )])
-        
-        # Styling
-        bgcolor = '#1a1a1a' if dark_theme else '#ffffff'
-        gridcolor = '#333333' if dark_theme else '#e0e0e0'
-        textcolor = 'white' if dark_theme else 'black'
-        
-        fig.update_layout(
-            title=dict(text=f"3D Structure Analytics: {x_col} × {y_col} × {z_col}", 
-                      font=dict(size=20, color=textcolor)),
-            scene=dict(
-                xaxis=dict(title=x_col, backgroundcolor=bgcolor, gridcolor=gridcolor, 
-                          titlefont=dict(color=textcolor)),
-                yaxis=dict(title=y_col, backgroundcolor=bgcolor, gridcolor=gridcolor, 
-                          titlefont=dict(color=textcolor)),
-                zaxis=dict(title=z_col, backgroundcolor=bgcolor, gridcolor=gridcolor, 
-                          titlefont=dict(color=textcolor)),
-                bgcolor=bgcolor
-            ),
-            paper_bgcolor=bgcolor,
-            plot_bgcolor=bgcolor,
-            font=dict(color=textcolor),
-            width=1000,
-            height=700
-        )
-        
-        _display_plotly_figure(fig)
-        
-        # Statistical Summary
-        stats_table = Table(show_header=True, header_style="bold magenta", box=box.ROUNDED)
-        stats_table.add_column("Variable", style="cyan")
-        stats_table.add_column("Mean", style="green")
-        stats_table.add_column("Std", style="green")
-        stats_table.add_column("Min", style="yellow")
-        stats_table.add_column("Max", style="yellow")
-        
-        for col in [x_col, y_col, z_col]:
-            stats_table.add_row(
-                col,
-                f"{df[col].mean():.2f}",
-                f"{df[col].std():.2f}",
-                f"{df[col].min():.2f}",
-                f"{df[col].max():.2f}"
-            )
-        
-        console.print(Panel(stats_table, title="📊 Statistical Summary", border_style="magenta"))
-        console.print("✅ [green]3D Bubble Scatter created![/green]\n")
-        self.plot_count += 1
+    # ─── CHART 1: 3D SURFACE DENSITY ───────────────────────────────────────────
     
-    def _create_sunburst_chart(self, df, categorical_cols, numeric_cols, dark_theme):
-        """Create sunburst hierarchy chart"""
-        console.print("\n☀️ [bold cyan]2. Sunburst Hierarchy - Category Distribution[/bold cyan]")
+    def _create_3d_surface_density(self, df, numeric_cols, dark_theme):
+        """Create a 3D surface density landscape using KDE"""
+        console.print("\n🌊 [bold cyan]1. 3D Density Surface — Data Landscape[/bold cyan]")
         
-        # Select columns
-        path_cols = categorical_cols[:3] if len(categorical_cols) >= 3 else categorical_cols[:2]
-        value_col = numeric_cols[0]
-        color_col = numeric_cols[1] if len(numeric_cols) > 1 else numeric_cols[0]
+        # Pick best 2 numeric columns (or use column + its index)
+        if len(numeric_cols) >= 2:
+            x_col, y_col = numeric_cols[0], numeric_cols[1]
+            x_data = df[x_col].dropna().values.astype(float)
+            y_data = df[y_col].dropna().values.astype(float)
+            # Align lengths
+            min_len = min(len(x_data), len(y_data))
+            x_data, y_data = x_data[:min_len], y_data[:min_len]
+            x_label, y_label = x_col, y_col
+        else:
+            x_col = numeric_cols[0]
+            x_data = df[x_col].dropna().values.astype(float)
+            # Create synthetic y-axis from row index
+            y_data = np.arange(len(x_data)).astype(float)
+            x_label, y_label = x_col, "Index"
         
-        # Prepare data
-        plot_df = df[path_cols + [value_col, color_col]].copy()
+        # Sample for performance
+        if len(x_data) > 5000:
+            idx = np.random.choice(len(x_data), 5000, replace=False)
+            x_data, y_data = x_data[idx], y_data[idx]
         
-        fig = px.sunburst(
-            plot_df,
-            path=path_cols,
-            values=value_col,
-            color=color_col,
-            color_continuous_scale='Plasma' if dark_theme else 'Viridis',
-            title=f"Hierarchical Distribution: {' > '.join(path_cols)}"
-        )
+        # Build 2D KDE surface
+        try:
+            from scipy.stats import gaussian_kde
+            xy_stack = np.vstack([x_data, y_data])
+            kde = gaussian_kde(xy_stack, bw_method='scott')
+            
+            grid_size = 60
+            x_grid = np.linspace(x_data.min(), x_data.max(), grid_size)
+            y_grid = np.linspace(y_data.min(), y_data.max(), grid_size)
+            X, Y = np.meshgrid(x_grid, y_grid)
+            positions = np.vstack([X.ravel(), Y.ravel()])
+            Z = kde(positions).reshape(X.shape)
+        except Exception:
+            # Fallback: histogram-based surface
+            grid_size = 40
+            Z, x_edges, y_edges = np.histogram2d(x_data, y_data, bins=grid_size)
+            x_grid = (x_edges[:-1] + x_edges[1:]) / 2
+            y_grid = (y_edges[:-1] + y_edges[1:]) / 2
+            X, Y = np.meshgrid(x_grid, y_grid)
+            Z = Z.T  # Align axes
         
-        # Styling
-        bgcolor = '#1a1a1a' if dark_theme else '#ffffff'
-        textcolor = 'white' if dark_theme else 'black'
+        # Neon color scales for dark theme
+        colorscale = [
+            [0.0, '#0d0221'], [0.1, '#0a0440'], [0.2, '#150050'],
+            [0.3, '#3f0071'], [0.4, '#6100a1'], [0.5, '#a200d1'],
+            [0.6, '#d000ff'], [0.7, '#ff00e4'], [0.8, '#ff6bf5'],
+            [0.9, '#ffa6f6'], [1.0, '#ffe0fc']
+        ] if dark_theme else 'Viridis'
         
-        fig.update_layout(
-            paper_bgcolor=bgcolor,
-            plot_bgcolor=bgcolor,
-            font=dict(color=textcolor, size=12),
-            title=dict(font=dict(size=20, color=textcolor)),
-            width=900,
-            height=900
-        )
-        
-        _display_plotly_figure(fig)
-        
-        # Distribution Insights
-        insights = []
-        for col in path_cols:
-            unique_count = df[col].nunique()
-            top_category = df[col].value_counts().index[0]
-            top_pct = (df[col].value_counts().iloc[0] / len(df)) * 100
-            insights.append(f"📊 **{col}**: {unique_count} categories, top is '{top_category}' ({top_pct:.1f}%)")
-        
-        insights_text = Text()
-        for insight in insights:
-            insights_text.append(f"{insight}\n", style="cyan")
-        
-        console.print(Panel(insights_text, title="🔍 Distribution Insights", border_style="cyan"))
-        console.print("✅ [green]Sunburst chart created![/green]\n")
-        self.plot_count += 1
-    
-    def _create_correlation_heatmap_pro(self, df, numeric_cols, dark_theme):
-        """Create professional correlation heatmap"""
-        console.print("\n🔥 [bold cyan]3. Correlation Heatmap Pro - Feature Relationships[/bold cyan]")
-        
-        # Limit columns
-        cols = numeric_cols[:10]
-        corr_matrix = df[cols].corr()
-        
-        fig = go.Figure(data=go.Heatmap(
-            z=corr_matrix.values,
-            x=corr_matrix.columns,
-            y=corr_matrix.index,
-            colorscale='RdBu_r',
-            zmid=0,
-            text=corr_matrix.values,
-            texttemplate='%{text:.2f}',
-            textfont={"size": 10},
+        fig = go.Figure(data=[go.Surface(
+            x=X, y=Y, z=Z,
+            colorscale=colorscale,
+            showscale=True,
             colorbar=dict(
-                title="Correlation",
+                title="Density",
                 titlefont=dict(color='white' if dark_theme else 'black'),
                 tickfont=dict(color='white' if dark_theme else 'black')
-            )
-        ))
+            ),
+            lighting=dict(
+                ambient=0.4, diffuse=0.6, specular=0.3,
+                roughness=0.5, fresnel=0.2
+            ),
+            contours=dict(
+                z=dict(show=True, usecolormap=True, project_z=True, highlightcolor='#ff00e4' if dark_theme else '#636EFA')
+            ),
+            opacity=0.95
+        )])
         
-        # Styling
-        bgcolor = '#1a1a1a' if dark_theme else '#ffffff'
-        gridcolor = '#333333' if dark_theme else '#e0e0e0'
-        textcolor = 'white' if dark_theme else 'black'
+        bgcolor = '#0d0221' if dark_theme else '#ffffff'
+        gridcolor = '#1a0a3e' if dark_theme else '#e0e0e0'
+        textcolor = '#e0d0ff' if dark_theme else 'black'
         
         fig.update_layout(
-            title=dict(text="Feature Correlation Matrix", font=dict(size=20, color=textcolor)),
+            title=dict(text=f"🌊 3D Density Surface: {x_label} × {y_label}",
+                      font=dict(size=20, color=textcolor, family='Arial Black')),
+            scene=dict(
+                xaxis=dict(title=x_label, backgroundcolor=bgcolor, gridcolor=gridcolor,
+                          titlefont=dict(color=textcolor), tickfont=dict(color=textcolor)),
+                yaxis=dict(title=y_label, backgroundcolor=bgcolor, gridcolor=gridcolor,
+                          titlefont=dict(color=textcolor), tickfont=dict(color=textcolor)),
+                zaxis=dict(title="Density", backgroundcolor=bgcolor, gridcolor=gridcolor,
+                          titlefont=dict(color=textcolor), tickfont=dict(color=textcolor)),
+                bgcolor=bgcolor,
+                camera=dict(eye=dict(x=1.5, y=1.5, z=1.2))
+            ),
             paper_bgcolor=bgcolor,
             plot_bgcolor=bgcolor,
             font=dict(color=textcolor),
-            xaxis=dict(tickangle=-45, tickfont=dict(color=textcolor)),
-            yaxis=dict(tickfont=dict(color=textcolor)),
-            width=900,
-            height=800
+            width=1000, height=750
         )
         
         _display_plotly_figure(fig)
-        
-        # Find strong correlations
-        strong_corr = []
-        for i in range(len(corr_matrix.columns)):
-            for j in range(i+1, len(corr_matrix.columns)):
-                corr_val = corr_matrix.iloc[i, j]
-                if abs(corr_val) >= 0.5:
-                    var1, var2 = corr_matrix.columns[i], corr_matrix.columns[j]
-                    strong_corr.append((var1, var2, corr_val))
-        
-        if strong_corr:
-            corr_table = Table(show_header=True, header_style="bold blue", box=box.ROUNDED)
-            corr_table.add_column("Variable 1", style="cyan")
-            corr_table.add_column("Variable 2", style="cyan")
-            corr_table.add_column("Correlation", style="bold green")
-            
-            for var1, var2, corr_val in strong_corr[:5]:
-                corr_table.add_row(var1, var2, f"{corr_val:.3f}")
-            
-            console.print(Panel(corr_table, title="🔍 Strong Correlations (|r| ≥ 0.5)", border_style="blue"))
-        
-        console.print("✅ [green]Correlation heatmap created![/green]\n")
+        console.print("✅ [green]3D Density Surface created![/green]\n")
         self.plot_count += 1
-    
-    def _create_scatter_matrix_pro(self, df, numeric_cols, dark_theme):
-        """Create professional scatter matrix"""
-        console.print("\n🎯 [bold cyan]4. Scatter Matrix Pro - Multi-Variable Analysis[/bold cyan]")
+
+    # ─── CHART 2: TREEMAP (replaces buggy sunburst) ────────────────────────────
+
+    def _create_treemap_chart(self, df, categorical_cols, numeric_cols, dark_theme):
+        """Create an interactive treemap hierarchy chart"""
+        console.print("\n🌳 [bold cyan]2. Interactive Treemap — Hierarchical Distribution[/bold cyan]")
         
-        # Limit columns
-        cols = numeric_cols[:5]
-        color_col = numeric_cols[0]
+        # Filter to low-cardinality categoricals (≤ 30 unique) for readable charts
+        usable_cats = [c for c in categorical_cols if df[c].nunique() <= 30]
+        if not usable_cats:
+            # Fallback: bin the top categorical by top-10 values
+            col = categorical_cols[0]
+            top_vals = df[col].value_counts().head(10).index.tolist()
+            df = df.copy()
+            df[col] = df[col].where(df[col].isin(top_vals), other='Other')
+            usable_cats = [col]
         
-        fig = px.scatter_matrix(
-            df[cols],
-            dimensions=cols,
-            color=df[color_col],
+        # Build path: use up to 2 categorical columns
+        path_cols = usable_cats[:2]
+        
+        # Aggregate: count rows per group (safe — no negative values issue)
+        if len(path_cols) == 2:
+            agg_df = df.groupby(path_cols).size().reset_index(name='count')
+        else:
+            agg_df = df.groupby(path_cols).size().reset_index(name='count')
+        
+        # Color by count or a numeric column
+        if numeric_cols:
+            # Compute mean of first numeric col per group
+            mean_df = df.groupby(path_cols)[numeric_cols[0]].mean().reset_index()
+            mean_df.columns = list(path_cols) + ['color_val']
+            agg_df = agg_df.merge(mean_df, on=list(path_cols), how='left')
+            color_col_name = 'color_val'
+            color_label = f"Avg {numeric_cols[0]}"
+        else:
+            agg_df['color_val'] = agg_df['count']
+            color_col_name = 'color_val'
+            color_label = "Count"
+        
+        # Neon treemap palette
+        neon_colors = [
+            '#ff006e', '#8338ec', '#3a86ff', '#00f5d4', '#fee440',
+            '#fb5607', '#ff006e', '#7209b7', '#560bad', '#480ca8'
+        ] if dark_theme else px.colors.qualitative.Set3
+        
+        fig = px.treemap(
+            agg_df,
+            path=[px.Constant("All")] + path_cols,
+            values='count',
+            color=color_col_name,
             color_continuous_scale='Plasma' if dark_theme else 'Viridis',
-            title="Multi-Variable Scatter Matrix"
+            title=f"Hierarchical Distribution: {' → '.join(path_cols)}",
+            hover_data={'count': ':,'}
         )
         
-        # Styling
-        bgcolor = '#1a1a1a' if dark_theme else '#ffffff'
-        textcolor = 'white' if dark_theme else 'black'
+        bgcolor = '#0d0221' if dark_theme else '#ffffff'
+        textcolor = '#e0d0ff' if dark_theme else 'black'
         
         fig.update_layout(
             paper_bgcolor=bgcolor,
             plot_bgcolor=bgcolor,
-            font=dict(color=textcolor, size=10),
-            title=dict(font=dict(size=20, color=textcolor)),
-            width=1200,
-            height=1000
+            font=dict(color=textcolor, size=12, family='Arial'),
+            title=dict(font=dict(size=20, color=textcolor, family='Arial Black')),
+            coloraxis_colorbar=dict(
+                title=color_label,
+                titlefont=dict(color=textcolor),
+                tickfont=dict(color=textcolor)
+            ),
+            width=1000, height=750,
+            margin=dict(t=60, l=10, r=10, b=10)
         )
-        fig.update_traces(diagonal_visible=False, marker=dict(size=4, opacity=0.6))
+        fig.update_traces(
+            textinfo="label+value+percent parent",
+            marker=dict(cornerradius=5)
+        )
         
         _display_plotly_figure(fig)
-        console.print("✅ [green]Scatter matrix created![/green]\n")
+        
+        # Summary insights
+        insights_text = Text()
+        for col in path_cols:
+            unique_count = df[col].nunique()
+            top_cat = df[col].value_counts().index[0]
+            top_pct = (df[col].value_counts().iloc[0] / len(df)) * 100
+            insights_text.append(f"📊 {col}: {unique_count} categories, top = '{top_cat}' ({top_pct:.1f}%)\n", style="cyan")
+        insights_text.append(f"📈 Total records: {len(df):,}\n", style="green")
+        
+        console.print(Panel(insights_text, title="🔍 Treemap Insights", border_style="cyan"))
+        console.print("✅ [green]Interactive Treemap created![/green]\n")
         self.plot_count += 1
-    
+
+    # ─── CHART 3: 3D RADAR / SPIDER ───────────────────────────────────────────
+
+    def _create_3d_radar_chart(self, df, numeric_cols, categorical_cols, dark_theme):
+        """Create a multi-dimensional radar/spider chart comparing groups"""
+        console.print("\n🕸️ [bold cyan]3. 3D Radar Chart — Multi-Dimensional Profiles[/bold cyan]")
+        
+        # Pick up to 8 numeric dimensions
+        radar_cols = numeric_cols[:8]
+        
+        # Normalize all columns to 0-1 for fair comparison
+        normalized = pd.DataFrame()
+        for col in radar_cols:
+            col_data = df[col].dropna()
+            col_min, col_max = col_data.min(), col_data.max()
+            if col_max - col_min > 0:
+                normalized[col] = (df[col] - col_min) / (col_max - col_min)
+            else:
+                normalized[col] = 0.5
+        
+        # If we have a categorical column, compare group profiles
+        group_col = None
+        if categorical_cols:
+            # Find a categorical with 2-6 groups
+            for cat in categorical_cols:
+                if 2 <= df[cat].nunique() <= 6:
+                    group_col = cat
+                    break
+            if not group_col:
+                # Use top 4 values of first categorical
+                group_col = categorical_cols[0]
+                top_vals = df[group_col].value_counts().head(4).index.tolist()
+                normalized[group_col] = df[group_col].where(df[group_col].isin(top_vals), other=None)
+            else:
+                normalized[group_col] = df[group_col]
+        
+        # Neon colors for radar traces
+        neon_palette = ['#ff006e', '#00f5d4', '#3a86ff', '#fee440', '#fb5607', '#8338ec']
+        light_palette = ['#e63946', '#457b9d', '#2a9d8f', '#e9c46a', '#f4a261', '#264653']
+        colors = neon_palette if dark_theme else light_palette
+        
+        fig = go.Figure()
+        
+        if group_col and group_col in normalized.columns:
+            groups = normalized[group_col].dropna().unique()[:6]
+            for i, group in enumerate(groups):
+                group_data = normalized[normalized[group_col] == group][radar_cols].mean()
+                values = group_data.values.tolist()
+                values.append(values[0])  # Close the polygon
+                
+                fig.add_trace(go.Scatterpolar(
+                    r=values,
+                    theta=radar_cols + [radar_cols[0]],
+                    name=str(group),
+                    fill='toself',
+                    fillcolor=f"rgba({int(colors[i % len(colors)][1:3], 16)}, {int(colors[i % len(colors)][3:5], 16)}, {int(colors[i % len(colors)][5:7], 16)}, 0.15)",
+                    line=dict(color=colors[i % len(colors)], width=2.5),
+                    marker=dict(size=6, color=colors[i % len(colors)])
+                ))
+        else:
+            # Overall profile: mean, median, std bands
+            mean_vals = normalized[radar_cols].mean().values.tolist()
+            mean_vals.append(mean_vals[0])
+            median_vals = normalized[radar_cols].median().values.tolist()
+            median_vals.append(median_vals[0])
+            
+            fig.add_trace(go.Scatterpolar(
+                r=mean_vals, theta=radar_cols + [radar_cols[0]],
+                name='Mean Profile', fill='toself',
+                fillcolor='rgba(255, 0, 110, 0.15)' if dark_theme else 'rgba(99, 110, 250, 0.15)',
+                line=dict(color='#ff006e' if dark_theme else '#636EFA', width=2.5),
+                marker=dict(size=6)
+            ))
+            fig.add_trace(go.Scatterpolar(
+                r=median_vals, theta=radar_cols + [radar_cols[0]],
+                name='Median Profile', fill='toself',
+                fillcolor='rgba(0, 245, 212, 0.1)' if dark_theme else 'rgba(0, 204, 150, 0.1)',
+                line=dict(color='#00f5d4' if dark_theme else '#00CC96', width=2, dash='dash'),
+                marker=dict(size=5)
+            ))
+        
+        bgcolor = '#0d0221' if dark_theme else '#ffffff'
+        textcolor = '#e0d0ff' if dark_theme else 'black'
+        gridcolor = '#2a1052' if dark_theme else '#e0e0e0'
+        
+        fig.update_layout(
+            polar=dict(
+                bgcolor=bgcolor,
+                radialaxis=dict(
+                    visible=True, range=[0, 1],
+                    gridcolor=gridcolor, linecolor=gridcolor,
+                    tickfont=dict(color=textcolor, size=9)
+                ),
+                angularaxis=dict(
+                    gridcolor=gridcolor, linecolor=gridcolor,
+                    tickfont=dict(color=textcolor, size=11)
+                )
+            ),
+            title=dict(
+                text=f"🕸️ Multi-Dimensional Radar: {len(radar_cols)} Features" +
+                     (f" by {group_col}" if group_col else ""),
+                font=dict(size=20, color=textcolor, family='Arial Black')
+            ),
+            paper_bgcolor=bgcolor,
+            font=dict(color=textcolor),
+            legend=dict(font=dict(color=textcolor, size=11)),
+            width=900, height=750
+        )
+        
+        _display_plotly_figure(fig)
+        
+        # Feature importance ranking
+        if group_col and group_col in normalized.columns:
+            groups_data = normalized.dropna(subset=[group_col])
+            variance_by_feature = {}
+            for col in radar_cols:
+                group_means = groups_data.groupby(group_col)[col].mean()
+                variance_by_feature[col] = group_means.var()
+            
+            sorted_features = sorted(variance_by_feature.items(), key=lambda x: x[1], reverse=True)
+            feat_table = Table(show_header=True, header_style="bold magenta", box=box.ROUNDED)
+            feat_table.add_column("Feature", style="cyan")
+            feat_table.add_column("Discriminative Power", style="bold green")
+            for feat, var in sorted_features[:5]:
+                bar = "█" * int(var / max(v for _, v in sorted_features) * 20) if max(v for _, v in sorted_features) > 0 else ""
+                feat_table.add_row(feat, f"{var:.4f}  {bar}")
+            console.print(Panel(feat_table, title="🎯 Feature Discriminative Power", border_style="magenta"))
+        
+        console.print("✅ [green]Radar Chart created![/green]\n")
+        self.plot_count += 1
+
+    # ─── CHART 4: PARALLEL COORDINATES ─────────────────────────────────────────
+
+    def _create_parallel_coordinates(self, df, numeric_cols, categorical_cols, dark_theme):
+        """Create interactive parallel coordinates plot"""
+        console.print("\n🔀 [bold cyan]4. Parallel Coordinates — Multi-Axis Pattern Explorer[/bold cyan]")
+        
+        # Pick up to 7 numeric columns
+        par_cols = numeric_cols[:7]
+        
+        # Decide color dimension
+        color_data = None
+        color_label = ""
+        colorscale = 'Plasma' if dark_theme else 'Viridis'
+        
+        if categorical_cols:
+            # Encode best categorical as color
+            best_cat = None
+            for cat in categorical_cols:
+                if 2 <= df[cat].nunique() <= 10:
+                    best_cat = cat
+                    break
+            if not best_cat:
+                best_cat = categorical_cols[0]
+            
+            le = LabelEncoder()
+            valid_mask = df[best_cat].notna()
+            encoded = pd.Series(np.nan, index=df.index)
+            encoded[valid_mask] = le.fit_transform(df[best_cat][valid_mask].astype(str))
+            color_data = encoded
+            color_label = best_cat
+            
+            # Use a discrete-ish neon scale
+            n_cats = int(encoded.max()) + 1 if encoded.notna().any() else 1
+            if dark_theme:
+                neon = ['#ff006e', '#00f5d4', '#3a86ff', '#fee440', '#fb5607', '#8338ec', '#7209b7', '#560bad', '#f72585', '#4cc9f0']
+                colorscale = [[i / max(n_cats - 1, 1), neon[i % len(neon)]] for i in range(n_cats)]
+            else:
+                colorscale = 'Turbo'
+        else:
+            color_data = df[par_cols[0]]
+            color_label = par_cols[0]
+        
+        # Build dimensions
+        dimensions = []
+        for col in par_cols:
+            col_data = df[col].dropna()
+            dimensions.append(dict(
+                range=[col_data.min(), col_data.max()],
+                label=col,
+                values=df[col]
+            ))
+        
+        # Sample for performance
+        sample_size = min(len(df), 5000)
+        if len(df) > sample_size:
+            sample_idx = np.random.choice(len(df), sample_size, replace=False)
+            sampled_dims = []
+            for d in dimensions:
+                sampled_dims.append(dict(
+                    range=d['range'], label=d['label'],
+                    values=d['values'].iloc[sample_idx]
+                ))
+            dimensions = sampled_dims
+            color_sampled = color_data.iloc[sample_idx] if color_data is not None else None
+        else:
+            color_sampled = color_data
+        
+        bgcolor = '#0d0221' if dark_theme else '#ffffff'
+        textcolor = '#e0d0ff' if dark_theme else 'black'
+        line_color_bg = '#1a0a3e' if dark_theme else '#f0f0f0'
+        
+        fig = go.Figure(data=go.Parcoords(
+            line=dict(
+                color=color_sampled,
+                colorscale=colorscale,
+                showscale=True,
+                colorbar=dict(
+                    title=color_label,
+                    titlefont=dict(color=textcolor),
+                    tickfont=dict(color=textcolor)
+                )
+            ),
+            dimensions=dimensions,
+            labelfont=dict(color=textcolor, size=12),
+            tickfont=dict(color=textcolor, size=10),
+            rangefont=dict(color=textcolor, size=10)
+        ))
+        
+        fig.update_layout(
+            title=dict(text=f"🔀 Parallel Coordinates: {len(par_cols)} Dimensions" +
+                       (f" colored by {color_label}" if color_label else ""),
+                      font=dict(size=20, color=textcolor, family='Arial Black')),
+            paper_bgcolor=bgcolor,
+            plot_bgcolor=bgcolor,
+            font=dict(color=textcolor),
+            width=1100, height=650,
+            margin=dict(l=80, r=80, t=80, b=40)
+        )
+        
+        _display_plotly_figure(fig)
+        
+        # Insights
+        insights_text = Text()
+        insights_text.append(f"📊 Dimensions: {len(par_cols)} numeric features\n", style="cyan")
+        if color_label:
+            insights_text.append(f"🎨 Color: {color_label}\n", style="cyan")
+        insights_text.append("💡 Tip: Drag axes to reorder. Click+drag on an axis to filter ranges.\n", style="green")
+        console.print(Panel(insights_text, title="🔍 Parallel Coordinates Guide", border_style="cyan"))
+        console.print("✅ [green]Parallel Coordinates created![/green]\n")
+        self.plot_count += 1
+
+    # ─── CHART 5: RIDGELINE 3D DISTRIBUTION ───────────────────────────────────
+
+    def _create_ridgeline_3d(self, df, numeric_cols, categorical_cols, dark_theme):
+        """Create a 3D ridgeline (joy) plot showing distributions per category"""
+        console.print("\n🏔️ [bold cyan]5. 3D Ridgeline — Distribution by Category[/bold cyan]")
+        
+        # Pick numeric column
+        num_col = numeric_cols[0]
+        
+        # Pick categorical with 3-12 unique values
+        cat_col = None
+        for cat in categorical_cols:
+            n_unique = df[cat].nunique()
+            if 3 <= n_unique <= 12:
+                cat_col = cat
+                break
+        if not cat_col:
+            # Use top 8 values of first categorical
+            cat_col = categorical_cols[0]
+            top_vals = df[cat_col].value_counts().head(8).index.tolist()
+            df = df.copy()
+            df[cat_col] = df[cat_col].where(df[cat_col].isin(top_vals), other=None)
+            df = df.dropna(subset=[cat_col])
+        
+        categories = df[cat_col].value_counts().head(10).index.tolist()
+        
+        # Neon color palette
+        neon_palette = [
+            '#ff006e', '#00f5d4', '#3a86ff', '#fee440', '#fb5607',
+            '#8338ec', '#f72585', '#4cc9f0', '#7209b7', '#06d6a0'
+        ]
+        light_palette = [
+            '#e63946', '#457b9d', '#2a9d8f', '#e9c46a', '#f4a261',
+            '#264653', '#a8dadc', '#fca311', '#6d6875', '#b5838d'
+        ]
+        palette = neon_palette if dark_theme else light_palette
+        
+        fig = go.Figure()
+        
+        # Create KDE for each category and stack them in 3D
+        x_range = np.linspace(df[num_col].min(), df[num_col].max(), 200)
+        
+        for i, cat in enumerate(categories):
+            cat_data = df[df[cat_col] == cat][num_col].dropna().values
+            if len(cat_data) < 5:
+                continue
+            
+            try:
+                from scipy.stats import gaussian_kde
+                kde = gaussian_kde(cat_data, bw_method='scott')
+                density = kde(x_range)
+            except Exception:
+                # Fallback: simple histogram-based density
+                hist, edges = np.histogram(cat_data, bins=50, range=(x_range[0], x_range[-1]), density=True)
+                centers = (edges[:-1] + edges[1:]) / 2
+                density = np.interp(x_range, centers, hist)
+            
+            # Normalize density for visual consistency
+            if density.max() > 0:
+                density = density / density.max()
+            
+            color = palette[i % len(palette)]
+            r, g, b = int(color[1:3], 16), int(color[3:5], 16), int(color[5:7], 16)
+            
+            # Filled area as a surface-like trace
+            fig.add_trace(go.Scatter3d(
+                x=x_range, y=[i] * len(x_range), z=density,
+                mode='lines',
+                line=dict(color=color, width=3),
+                name=str(cat),
+                showlegend=True
+            ))
+            
+            # Fill: create a filled polygon by adding zero-line
+            fig.add_trace(go.Mesh3d(
+                x=np.concatenate([x_range, x_range[::-1]]),
+                y=np.concatenate([[i] * len(x_range), [i] * len(x_range)]),
+                z=np.concatenate([density, np.zeros(len(x_range))]),
+                color=f'rgba({r}, {g}, {b}, 0.3)',
+                flatshading=True,
+                showlegend=False,
+                hoverinfo='skip'
+            ))
+        
+        bgcolor = '#0d0221' if dark_theme else '#ffffff'
+        gridcolor = '#1a0a3e' if dark_theme else '#e0e0e0'
+        textcolor = '#e0d0ff' if dark_theme else 'black'
+        
+        fig.update_layout(
+            title=dict(text=f"🏔️ 3D Ridgeline: {num_col} by {cat_col}",
+                      font=dict(size=20, color=textcolor, family='Arial Black')),
+            scene=dict(
+                xaxis=dict(title=num_col, backgroundcolor=bgcolor, gridcolor=gridcolor,
+                          titlefont=dict(color=textcolor), tickfont=dict(color=textcolor)),
+                yaxis=dict(
+                    title=cat_col,
+                    backgroundcolor=bgcolor, gridcolor=gridcolor,
+                    titlefont=dict(color=textcolor),
+                    tickvals=list(range(len(categories))),
+                    ticktext=[str(c)[:15] for c in categories],
+                    tickfont=dict(color=textcolor, size=9)
+                ),
+                zaxis=dict(title="Density", backgroundcolor=bgcolor, gridcolor=gridcolor,
+                          titlefont=dict(color=textcolor), tickfont=dict(color=textcolor)),
+                bgcolor=bgcolor,
+                camera=dict(eye=dict(x=1.8, y=-1.5, z=1.0))
+            ),
+            paper_bgcolor=bgcolor,
+            plot_bgcolor=bgcolor,
+            font=dict(color=textcolor),
+            legend=dict(font=dict(color=textcolor, size=10)),
+            width=1100, height=750
+        )
+        
+        _display_plotly_figure(fig)
+        
+        # Category comparison insights
+        stats_table = Table(show_header=True, header_style="bold magenta", box=box.ROUNDED)
+        stats_table.add_column("Category", style="cyan")
+        stats_table.add_column("Count", style="yellow")
+        stats_table.add_column(f"Mean {num_col}", style="green")
+        stats_table.add_column(f"Std {num_col}", style="green")
+        
+        for cat in categories[:8]:
+            cat_data = df[df[cat_col] == cat][num_col].dropna()
+            if len(cat_data) > 0:
+                stats_table.add_row(
+                    str(cat)[:20],
+                    f"{len(cat_data):,}",
+                    f"{cat_data.mean():.2f}",
+                    f"{cat_data.std():.2f}"
+                )
+        
+        console.print(Panel(stats_table, title=f"📊 {num_col} by {cat_col}", border_style="magenta"))
+        console.print("✅ [green]3D Ridgeline created![/green]\n")
+        self.plot_count += 1
+
+    # ─── FALLBACK: DISTRIBUTION PRO ────────────────────────────────────────────
+
     def _create_distribution_pro(self, df, column, dark_theme):
-        """Create professional distribution with statistics"""
+        """Create professional distribution with statistics (fallback chart)"""
         console.print(f"\n📊 [bold cyan]Distribution Analysis: {column}[/bold cyan]")
         
         data = df[column].dropna()
         
         fig = go.Figure()
         
-        # Histogram
+        # Histogram + KDE overlay
         fig.add_trace(go.Histogram(
-            x=data,
-            nbinsx=50,
-            name='Distribution',
+            x=data, nbinsx=50, name='Distribution',
             marker=dict(
-                color='#00d4ff' if dark_theme else '#636EFA',
-                line=dict(color='white' if dark_theme else 'black', width=0.5)
+                color='#a200d1' if dark_theme else '#636EFA',
+                line=dict(color='#d000ff' if dark_theme else '#4a5568', width=0.5)
             ),
-            opacity=0.7
+            opacity=0.75
         ))
         
-        # Mean line
+        # Mean & Median lines
         mean_val = data.mean()
-        fig.add_vline(
-            x=mean_val,
-            line_dash="dash",
-            line_color='#ff6b6b' if dark_theme else 'red',
-            annotation_text=f"Mean: {mean_val:.2f}",
-            annotation_position="top"
-        )
-        
-        # Median line
         median_val = data.median()
-        fig.add_vline(
-            x=median_val,
-            line_dash="dot",
-            line_color='#4ecdc4' if dark_theme else 'green',
-            annotation_text=f"Median: {median_val:.2f}",
-            annotation_position="bottom"
-        )
+        fig.add_vline(x=mean_val, line_dash="dash",
+                     line_color='#ff006e' if dark_theme else 'red',
+                     annotation_text=f"Mean: {mean_val:.2f}", annotation_position="top")
+        fig.add_vline(x=median_val, line_dash="dot",
+                     line_color='#00f5d4' if dark_theme else 'green',
+                     annotation_text=f"Median: {median_val:.2f}", annotation_position="bottom")
         
-        # Styling
-        bgcolor = '#1a1a1a' if dark_theme else '#ffffff'
-        gridcolor = '#333333' if dark_theme else '#e0e0e0'
-        textcolor = 'white' if dark_theme else 'black'
+        bgcolor = '#0d0221' if dark_theme else '#ffffff'
+        gridcolor = '#1a0a3e' if dark_theme else '#e0e0e0'
+        textcolor = '#e0d0ff' if dark_theme else 'black'
         
         fig.update_layout(
             title=dict(text=f"Distribution: {column}", font=dict(size=20, color=textcolor)),
-            xaxis=dict(title=column, gridcolor=gridcolor, titlefont=dict(color=textcolor), 
+            xaxis=dict(title=column, gridcolor=gridcolor, titlefont=dict(color=textcolor),
                       tickfont=dict(color=textcolor)),
-            yaxis=dict(title='Count', gridcolor=gridcolor, titlefont=dict(color=textcolor), 
+            yaxis=dict(title='Count', gridcolor=gridcolor, titlefont=dict(color=textcolor),
                       tickfont=dict(color=textcolor)),
-            paper_bgcolor=bgcolor,
-            plot_bgcolor=bgcolor,
+            paper_bgcolor=bgcolor, plot_bgcolor=bgcolor,
             font=dict(color=textcolor),
-            width=1000,
-            height=600,
-            showlegend=True
+            width=1000, height=600, showlegend=True
         )
         
         _display_plotly_figure(fig)
         
-        # Statistical Summary
+        # Stats panel
         stats_table = Table(show_header=True, header_style="bold magenta", box=box.ROUNDED)
         stats_table.add_column("Statistic", style="cyan")
         stats_table.add_column("Value", style="bold green")
         
-        stats_table.add_row("Count", f"{len(data):,}")
-        stats_table.add_row("Mean", f"{mean_val:.2f}")
-        stats_table.add_row("Median", f"{median_val:.2f}")
-        stats_table.add_row("Std Dev", f"{data.std():.2f}")
-        stats_table.add_row("Min", f"{data.min():.2f}")
-        stats_table.add_row("Max", f"{data.max():.2f}")
-        stats_table.add_row("Skewness", f"{stats.skew(data):.3f}")
-        stats_table.add_row("Kurtosis", f"{stats.kurtosis(data):.3f}")
+        for label, val in [("Count", f"{len(data):,}"), ("Mean", f"{mean_val:.2f}"),
+                           ("Median", f"{median_val:.2f}"), ("Std Dev", f"{data.std():.2f}"),
+                           ("Min", f"{data.min():.2f}"), ("Max", f"{data.max():.2f}"),
+                           ("Skewness", f"{stats.skew(data):.3f}"),
+                           ("Kurtosis", f"{stats.kurtosis(data):.3f}")]:
+            stats_table.add_row(label, val)
         
-        console.print(Panel(stats_table, title=f"📊 Statistical Summary: {column}", border_style="magenta"))
-        
-        # Distribution Insights
-        insights = self.insights.analyze_distribution(data, column)
-        insights_text = Text()
-        for insight in insights[:5]:
-            insights_text.append(f"{insight}\n", style="cyan")
-        
-        console.print(Panel(insights_text, title="🔍 Distribution Insights", border_style="cyan"))
+        console.print(Panel(stats_table, title=f"📊 {column}", border_style="magenta"))
         console.print("─" * 80 + "\n")
         self.plot_count += 1
 
