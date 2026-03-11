@@ -1,6 +1,28 @@
 # EssentiaX Version History
 
-## v1.1.6 (Current) - March 4, 2026
+## v1.1.7 (Current) - March 11, 2026
+**Major Fix: Robust Advanced Visualizations & Bug Fixes**
+
+### Fixed
+- 🐛 **CRITICAL FIX**: Fixed `ValueError: Data must be 1-dimensional` in `smart_viz()` when processing datasets with few numeric columns (e.g., Netflix dataset).
+- 🐛 Fixed a bug where identical `value_col` and `color_col` caused Plotly crashes.
+- 🐛 Added high-cardinality filtering: Automatically skips columns with >50 unique values (e.g., ID, Title) to prevent unreadable charts.
+
+### Added
+- ✨ **5 NEW ADVANCED VISUALIZATIONS**: Completely redesigned the 'advanced' mode with robust, visually stunning charts:
+  - 🌊 **3D Density Surface**: Visualizes data landscapes using 2D KDE (works with ≥1 numeric column).
+  - 🌳 **Interactive Treemap**: Robust hierarchical breakdown with pre-aggregation (replaces sunburst).
+  - 🕸️ **3D Radar Chart**: Multi-dimensional group profile comparison (works with ≥3 numeric columns).
+  - 🔀 **Parallel Coordinates**: Interactive multi-axis pattern explorer (works with ≥2 numeric columns).
+  - 🏔️ **3D Ridgeline Plot**: Overlapping distribution surfaces by category (works with ≥1 numeric + 1 categorical column).
+
+### Changed
+- 🎨 **Enhanced Aesthetics**: New "Neon Night" styling with deep purple backgrounds and vibrant color palettes.
+- 🛡️ **Improved Stability**: All visualization methods now include `try/except` guards to ensure partial results even if some charts fail.
+
+---
+
+## v1.1.6 - March 4, 2026
 **Major Refactor: Unified Visualization Function**
 
 ### Changed (Breaking)
