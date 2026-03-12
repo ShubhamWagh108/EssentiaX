@@ -87,67 +87,63 @@ except ImportError:
     pio = None
 
 
+# Module-level flag: ensures stream cleanup happens only ONCE after rich.progress
+_stream_cleaned_after_progress = False
+
 def _display_plotly_figure(fig):
     """
     Display Plotly figure with guaranteed rendering in Colab/Jupyter environments.
     
-    This function handles the timing and stream issues that prevent Plotly graphs
-    from rendering in Colab when mixed with rich console output.
-    
-    CRITICAL FIX: Properly clears IPython output context after rich.progress usage
-    to prevent stream corruption that causes Plotly graphs to disappear.
+    CRITICAL: Does NOT call clear_output() — that would destroy all previous charts.
+    Instead, uses targeted stream flushing + direct display() for reliable rendering.
     """
+    global _stream_cleaned_after_progress
+    
     try:
-        # CRITICAL: Force complete flush of all output streams
+        # Flush all output streams to prevent corruption
         import sys
         sys.stdout.flush()
         sys.stderr.flush()
         
-        # Force console buffer flush if using rich
+        # Flush rich console buffer
         try:
             console.file.flush()
         except:
             pass
         
-        # CRITICAL FIX FOR COLAB: Clear IPython output context
-        # This is essential after rich.progress to reset the output stream
         if _ENVIRONMENT == 'colab':
             try:
-                from IPython.display import clear_output, display, HTML
-                
-                # Clear any lingering output context from rich (without clearing visible output)
-                # This resets the IOPub message bus that rich.progress may have corrupted
-                clear_output(wait=False)
-                
-                # Force a small delay to allow stream reset
+                from IPython.display import display, HTML
                 import time
-                time.sleep(0.05)
                 
-                # Method 1: Direct display with figure object (most reliable in Colab)
+                # One-time stream reset after rich.progress (only first chart)
+                if not _stream_cleaned_after_progress:
+                    time.sleep(0.1)
+                    _stream_cleaned_after_progress = True
+                
+                # Display using IPython display — preserves all prior output
                 display(fig)
                 
-                # Additional small delay to ensure rendering completes
-                time.sleep(0.05)
+                # Small delay to let Colab finish rendering before next chart
+                time.sleep(0.1)
                 
             except Exception as e:
-                # Fallback 1: Use explicit renderer
+                # Fallback: explicit renderer
                 try:
                     fig.show(renderer='colab')
                 except:
-                    # Fallback 2: Generate and inject HTML directly
                     try:
                         html_str = fig.to_html(
                             include_plotlyjs='cdn',
                             div_id=f'plotly-div-{id(fig)}',
                             config={'displayModeBar': True, 'responsive': True}
                         )
+                        from IPython.display import display, HTML
                         display(HTML(html_str))
                     except:
-                        # Last resort: standard show
                         fig.show()
                     
         elif _ENVIRONMENT == 'jupyter':
-            # Jupyter notebook: Use display for better reliability
             try:
                 from IPython.display import display
                 display(fig)
@@ -159,7 +155,6 @@ def _display_plotly_figure(fig):
             fig.show()
             
     except Exception as e:
-        # Ultimate fallback: standard show method
         try:
             fig.show()
         except Exception as show_error:
@@ -606,27 +601,14 @@ class SmartVizEngine:
             task = progress.add_task("Analyzing data patterns...", total=None)
             time.sleep(1)  # Simulate analysis
         
-        # CRITICAL FIX: Clean up output stream after rich.progress
-        # This prevents Plotly rendering issues in Colab
+        # Stream cleanup after rich.progress (flush only, NO clear_output)
         import sys
         sys.stdout.flush()
         sys.stderr.flush()
-        
-        # Force console buffer flush
         try:
             console.file.flush()
         except:
             pass
-        
-        # In Colab, clear the output context to reset IOPub stream
-        if _ENVIRONMENT == 'colab':
-            try:
-                from IPython.display import clear_output
-                # Clear without removing visible output - just resets the stream
-                clear_output(wait=False)
-                time.sleep(0.05)  # Small delay for stream reset
-            except:
-                pass
         
         numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
         categorical_cols = df.select_dtypes(include=['object', 'category']).columns.tolist()
@@ -937,7 +919,7 @@ class SmartVizEngine:
             self._plot_scatter_matrix(df, selected_vars['numeric'][:6])
     
     def _create_advanced_visualizations(self, df, selected_vars, dark_theme, target):
-        """Create advanced 3D professional visualizations — 5 unique chart types"""
+        """Create advanced 3D professional visualizations — always aims for 5 charts"""
         console.print("🎨 [bold magenta]Creating Advanced 3D Visualizations...[/bold magenta]\n")
         
         numeric_cols = selected_vars['numeric']
@@ -952,7 +934,7 @@ class SmartVizEngine:
             except Exception as e:
                 console.print(f"[yellow]⚠️ 3D Surface skipped: {e}[/yellow]\n")
         
-        # 2. ANIMATED TREEMAP (works with ≥1 categorical)
+        # 2. INTERACTIVE TREEMAP (works with ≥1 categorical)
         if len(categorical_cols) >= 1:
             try:
                 self._create_treemap_chart(df, categorical_cols, numeric_cols, dark_theme)
@@ -960,21 +942,21 @@ class SmartVizEngine:
             except Exception as e:
                 console.print(f"[yellow]⚠️ Treemap skipped: {e}[/yellow]\n")
         
-        # 3. 3D RADAR / SPIDER CHART (works with ≥3 numeric)
-        if len(numeric_cols) >= 3:
+        # 3. VIOLIN BOX COMPARISON (works with ≥1 numeric + ≥1 categorical)
+        if len(numeric_cols) >= 1 and len(categorical_cols) >= 1:
             try:
-                self._create_3d_radar_chart(df, numeric_cols, categorical_cols, dark_theme)
+                self._create_violin_box_chart(df, numeric_cols, categorical_cols, dark_theme)
                 charts_created += 1
             except Exception as e:
-                console.print(f"[yellow]⚠️ Radar chart skipped: {e}[/yellow]\n")
+                console.print(f"[yellow]⚠️ Violin chart skipped: {e}[/yellow]\n")
         
-        # 4. INTERACTIVE PARALLEL COORDINATES (works with ≥2 numeric)
-        if len(numeric_cols) >= 2:
+        # 4. DONUT PIE BREAKDOWN (works with ≥1 categorical)
+        if len(categorical_cols) >= 1:
             try:
-                self._create_parallel_coordinates(df, numeric_cols, categorical_cols, dark_theme)
+                self._create_donut_pie_chart(df, categorical_cols, numeric_cols, dark_theme)
                 charts_created += 1
             except Exception as e:
-                console.print(f"[yellow]⚠️ Parallel coordinates skipped: {e}[/yellow]\n")
+                console.print(f"[yellow]⚠️ Donut chart skipped: {e}[/yellow]\n")
         
         # 5. RIDGELINE 3D DISTRIBUTION (works with ≥1 numeric + ≥1 categorical)
         if len(numeric_cols) >= 1 and len(categorical_cols) >= 1:
@@ -984,11 +966,28 @@ class SmartVizEngine:
             except Exception as e:
                 console.print(f"[yellow]⚠️ Ridgeline chart skipped: {e}[/yellow]\n")
         
-        # FALLBACK: If very few charts were created, add distribution plots
+        # 6. 3D RADAR / SPIDER CHART (works with ≥3 numeric — bonus chart)
+        if len(numeric_cols) >= 3:
+            try:
+                self._create_3d_radar_chart(df, numeric_cols, categorical_cols, dark_theme)
+                charts_created += 1
+            except Exception as e:
+                console.print(f"[yellow]⚠️ Radar chart skipped: {e}[/yellow]\n")
+        
+        # 7. PARALLEL COORDINATES (works with ≥2 numeric — bonus chart)
+        if len(numeric_cols) >= 2:
+            try:
+                self._create_parallel_coordinates(df, numeric_cols, categorical_cols, dark_theme)
+                charts_created += 1
+            except Exception as e:
+                console.print(f"[yellow]⚠️ Parallel coordinates skipped: {e}[/yellow]\n")
+        
+        # FALLBACK: If very few charts, add distribution
         if charts_created < 3 and len(numeric_cols) >= 1:
             for col in numeric_cols[:max(1, 3 - charts_created)]:
                 try:
                     self._create_distribution_pro(df, col, dark_theme)
+                    charts_created += 1
                 except Exception:
                     pass
     
@@ -1425,6 +1424,192 @@ class SmartVizEngine:
         console.print("✅ [green]Parallel Coordinates created![/green]\n")
         self.plot_count += 1
 
+    # ─── CHART 3: VIOLIN BOX COMPARISON ────────────────────────────────────────
+
+    def _create_violin_box_chart(self, df, numeric_cols, categorical_cols, dark_theme):
+        """Create advanced violin + box plot comparison across categories"""
+        console.print("\n🎻 [bold cyan]3. Violin Box Comparison — Distribution by Category[/bold cyan]")
+        
+        num_col = numeric_cols[0]
+        
+        # Pick best categorical (2-10 groups)
+        cat_col = None
+        for cat in categorical_cols:
+            n = df[cat].nunique()
+            if 2 <= n <= 10:
+                cat_col = cat
+                break
+        if not cat_col:
+            cat_col = categorical_cols[0]
+            top_vals = df[cat_col].value_counts().head(8).index.tolist()
+            df = df.copy()
+            df[cat_col] = df[cat_col].where(df[cat_col].isin(top_vals), other=None)
+            df = df.dropna(subset=[cat_col])
+        
+        # Neon palette
+        neon = ['#ff006e', '#00f5d4', '#3a86ff', '#fee440', '#fb5607',
+                '#8338ec', '#f72585', '#4cc9f0', '#7209b7', '#06d6a0']
+        light = ['#e63946', '#457b9d', '#2a9d8f', '#e9c46a', '#f4a261',
+                 '#264653', '#a8dadc', '#fca311', '#6d6875', '#b5838d']
+        palette = neon if dark_theme else light
+        
+        categories = df[cat_col].value_counts().head(10).index.tolist()
+        
+        fig = go.Figure()
+        for i, cat in enumerate(categories):
+            cat_data = df[df[cat_col] == cat][num_col].dropna()
+            if len(cat_data) < 3:
+                continue
+            color = palette[i % len(palette)]
+            r, g, b = int(color[1:3], 16), int(color[3:5], 16), int(color[5:7], 16)
+            
+            fig.add_trace(go.Violin(
+                y=cat_data,
+                name=str(cat)[:15],
+                box_visible=True,
+                meanline_visible=True,
+                fillcolor=f'rgba({r}, {g}, {b}, 0.3)',
+                line_color=color,
+                marker=dict(color=color, size=3, opacity=0.3),
+                points='outliers',
+                scalemode='width',
+                width=0.8
+            ))
+        
+        bgcolor = '#0d0221' if dark_theme else '#ffffff'
+        gridcolor = '#1a0a3e' if dark_theme else '#e0e0e0'
+        textcolor = '#e0d0ff' if dark_theme else 'black'
+        
+        fig.update_layout(
+            title=dict(text=f"🎻 {num_col} Distribution by {cat_col}",
+                      font=dict(size=20, color=textcolor, family='Arial Black')),
+            yaxis=dict(title=num_col, gridcolor=gridcolor,
+                      titlefont=dict(color=textcolor), tickfont=dict(color=textcolor)),
+            xaxis=dict(title=cat_col, tickfont=dict(color=textcolor),
+                      titlefont=dict(color=textcolor)),
+            paper_bgcolor=bgcolor,
+            plot_bgcolor=bgcolor,
+            font=dict(color=textcolor),
+            showlegend=False,
+            width=1000, height=650
+        )
+        
+        _display_plotly_figure(fig)
+        
+        # Quick stats
+        stats_text = Text()
+        for cat in categories[:5]:
+            cat_data = df[df[cat_col] == cat][num_col].dropna()
+            if len(cat_data) > 0:
+                stats_text.append(
+                    f"📊 {str(cat)[:15]}: mean={cat_data.mean():.1f}, "
+                    f"median={cat_data.median():.1f}, std={cat_data.std():.1f}\n",
+                    style="cyan"
+                )
+        console.print(Panel(stats_text, title="🔍 Category Statistics", border_style="cyan"))
+        console.print("✅ [green]Violin Box chart created![/green]\n")
+        self.plot_count += 1
+
+    # ─── CHART 4: DONUT PIE BREAKDOWN ──────────────────────────────────────────
+
+    def _create_donut_pie_chart(self, df, categorical_cols, numeric_cols, dark_theme):
+        """Create a neon-styled donut pie chart for category breakdown"""
+        console.print("\n🍩 [bold cyan]4. Donut Breakdown — Category Proportions[/bold cyan]")
+        
+        # Pick the best categorical (prefer 3-12 unique)
+        cat_col = None
+        for cat in categorical_cols:
+            n = df[cat].nunique()
+            if 3 <= n <= 12:
+                cat_col = cat
+                break
+        if not cat_col:
+            cat_col = categorical_cols[0]
+        
+        value_counts = df[cat_col].value_counts().head(10)
+        
+        # If there are remaining categories beyond top 10, group as "Other"
+        if df[cat_col].nunique() > 10:
+            other_count = len(df) - value_counts.sum()
+            if other_count > 0:
+                value_counts = pd.concat([value_counts, pd.Series({'Other': other_count})])
+        
+        labels = [str(l)[:20] for l in value_counts.index]
+        values = value_counts.values
+        
+        # Neon colors
+        neon = ['#ff006e', '#00f5d4', '#3a86ff', '#fee440', '#fb5607',
+                '#8338ec', '#f72585', '#4cc9f0', '#7209b7', '#06d6a0', '#ffbe0b']
+        light = px.colors.qualitative.Set3
+        colors = neon[:len(labels)] if dark_theme else light[:len(labels)]
+        
+        # If we have a numeric column, add mean as hover info
+        hover_text = None
+        if numeric_cols:
+            hover_parts = []
+            for cat in value_counts.index:
+                cat_data = df[df[cat_col] == cat][numeric_cols[0]].dropna()
+                if len(cat_data) > 0:
+                    hover_parts.append(f"Avg {numeric_cols[0]}: {cat_data.mean():.1f}")
+                else:
+                    hover_parts.append("")
+            hover_text = hover_parts
+        
+        fig = go.Figure(data=[go.Pie(
+            labels=labels,
+            values=values,
+            hole=0.45,
+            marker=dict(
+                colors=colors,
+                line=dict(color='#0d0221' if dark_theme else '#ffffff', width=2)
+            ),
+            textinfo='label+percent',
+            textposition='outside',
+            textfont=dict(color='#e0d0ff' if dark_theme else 'black', size=11),
+            hovertext=hover_text,
+            hoverinfo='label+value+text' if hover_text else 'label+value+percent',
+            pull=[0.05 if i == 0 else 0 for i in range(len(labels))]
+        )])
+        
+        bgcolor = '#0d0221' if dark_theme else '#ffffff'
+        textcolor = '#e0d0ff' if dark_theme else 'black'
+        
+        fig.update_layout(
+            title=dict(text=f"🍩 Category Breakdown: {cat_col}",
+                      font=dict(size=20, color=textcolor, family='Arial Black')),
+            paper_bgcolor=bgcolor,
+            plot_bgcolor=bgcolor,
+            font=dict(color=textcolor),
+            legend=dict(
+                font=dict(color=textcolor, size=11),
+                bgcolor='rgba(13, 2, 33, 0.7)' if dark_theme else 'rgba(255,255,255,0.9)'
+            ),
+            annotations=[dict(
+                text=f'{cat_col}',
+                x=0.5, y=0.5,
+                font=dict(size=14, color=textcolor, family='Arial Black'),
+                showarrow=False
+            )],
+            width=900, height=700
+        )
+        
+        _display_plotly_figure(fig)
+        
+        # Summary table
+        summary_table = Table(show_header=True, header_style="bold green", box=box.ROUNDED)
+        summary_table.add_column("Category", style="cyan")
+        summary_table.add_column("Count", style="yellow")
+        summary_table.add_column("Percentage", style="bold green")
+        
+        total = values.sum()
+        for label, val in zip(labels[:8], values[:8]):
+            pct = (val / total) * 100
+            summary_table.add_row(label, f"{val:,}", f"{pct:.1f}%")
+        
+        console.print(Panel(summary_table, title=f"📊 {cat_col} Distribution", border_style="green"))
+        console.print("✅ [green]Donut Pie chart created![/green]\n")
+        self.plot_count += 1
+
     # ─── CHART 5: RIDGELINE 3D DISTRIBUTION ───────────────────────────────────
 
     def _create_ridgeline_3d(self, df, numeric_cols, categorical_cols, dark_theme):
@@ -1668,6 +1853,10 @@ def smart_viz(
     # Basic 2D visualizations
     smart_viz(df, mode='auto', viz_type='basic')
     """
+    
+    # Reset stream cleanup flag for this new call
+    global _stream_cleaned_after_progress
+    _stream_cleaned_after_progress = False
     
     # Initialize engine
     engine = SmartVizEngine()
