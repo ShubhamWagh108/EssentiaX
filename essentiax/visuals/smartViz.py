@@ -601,7 +601,8 @@ class SmartVizEngine:
             task = progress.add_task("Analyzing data patterns...", total=None)
             time.sleep(1)  # Simulate analysis
         
-        # Stream cleanup after rich.progress (flush only, NO clear_output)
+        # CRITICAL: Clean up stream after rich.progress to fix Colab rendering
+        # This clear_output runs ONCE here (not per-chart) so it doesn't destroy charts
         import sys
         sys.stdout.flush()
         sys.stderr.flush()
@@ -609,6 +610,15 @@ class SmartVizEngine:
             console.file.flush()
         except:
             pass
+        
+        if _ENVIRONMENT == 'colab':
+            try:
+                from IPython.display import clear_output
+                import time
+                clear_output(wait=True)  # wait=True preserves queued output
+                time.sleep(0.1)  # Let stream fully reset
+            except:
+                pass
         
         numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
         categorical_cols = df.select_dtypes(include=['object', 'category']).columns.tolist()
