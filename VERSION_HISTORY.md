@@ -1,6 +1,28 @@
 # EssentiaX Version History
 
-## v1.1.7 (Current) - March 11, 2026
+## v1.1.9 (Current) - March 13, 2026
+**Hotfix: Colab Rendering Reliability**
+
+### Fixed
+- 🐛 **CRITICAL FIX**: Fixed a regression where Plotly graphs failed to render in Google Colab due to stream corruption from `rich.progress`.
+- 🐛 Restored the `clear_output(wait=True)` call exactly once after the progress spinner to cleanly reset the `IOPub` message bus while preserving existing visible output.
+
+---
+
+## v1.1.8 - March 12, 2026
+**Feature: Expanded Advanced 3D Visualizations & Multi-Graph Fix**
+
+### Added
+- ✨ **2 NEW ADVANCED VISUALIZATIONS**: Added more robust chart types to ensure datasets with limited numeric columns (like the Netflix dataset) still get insightful visualizations.
+  - 🎻 **Violin Box Comparison**: Detailed distribution comparison across categories, combining a violin plot and a box plot. Works with ≥1 numeric and ≥1 categorical column.
+  - 🍩 **Neon Donut Pie Chart**: Stunning categorical breakdown with hovering analytics. Works with ≥1 categorical column.
+
+### Fixed
+- 🐛 Fixed a bug where only the *last* generated chart would display in Google Colab, because `clear_output(wait=False)` was being aggressively called for every single plot. Now, all 5+ advanced visualizations will render sequentially.
+
+---
+
+## v1.1.7 - March 11, 2026
 **Major Fix: Robust Advanced Visualizations & Bug Fixes**
 
 ### Fixed

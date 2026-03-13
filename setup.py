@@ -7,7 +7,7 @@ long_description = (here / "README.md").read_text(encoding="utf-8")
 
 setup(
     name="Essentiax",
-    version="1.1.8",  # Fix: All 5 charts now display in Colab + 2 new chart types
+    version="1.1.9",  # Release: 5 Advanced 3D Charts + Colab Output Fix
     author="Shubham Wagh",
     author_email="waghshubham197@gmail.com",
     description="Complete ML automation platform with AutoML, Feature Engineering, AI Insights, and Interactive Dashboards.",
