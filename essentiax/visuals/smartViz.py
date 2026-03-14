@@ -101,7 +101,6 @@ def _display_plotly_figure(fig):
     
     try:
         # Flush all output streams to prevent corruption
-        import sys
         sys.stdout.flush()
         sys.stderr.flush()
         
@@ -114,7 +113,6 @@ def _display_plotly_figure(fig):
         if _ENVIRONMENT == 'colab':
             try:
                 from IPython.display import display, HTML
-                import time
                 
                 # One-time stream reset after rich.progress (only first chart)
                 if not _stream_cleaned_after_progress:
@@ -603,7 +601,6 @@ class SmartVizEngine:
         
         # CRITICAL: Clean up stream after rich.progress to fix Colab rendering
         # This clear_output runs ONCE here (not per-chart) so it doesn't destroy charts
-        import sys
         sys.stdout.flush()
         sys.stderr.flush()
         try:
@@ -614,7 +611,6 @@ class SmartVizEngine:
         if _ENVIRONMENT == 'colab':
             try:
                 from IPython.display import clear_output
-                import time
                 clear_output(wait=True)  # wait=True preserves queued output
                 time.sleep(0.1)  # Let stream fully reset
             except:

@@ -1,6 +1,14 @@
 # EssentiaX Version History
 
-## v1.1.9 (Current) - March 13, 2026
+## v1.1.10 (Current) - March 14, 2026
+**Hotfix: SmartViz UnboundLocalError**
+
+### Fixed
+- 🐛 **CRITICAL FIX**: Fixed `UnboundLocalError: cannot access local variable 'time'` and `'sys'` in `smart_viz()`. Removed shadowed local imports to restore full functionality.
+
+---
+
+## v1.1.9 - March 13, 2026
 **Hotfix: Colab Rendering Reliability**
 
 ### Fixed
