@@ -154,10 +154,24 @@ class FeatureEngineer(BaseFeatureTransformer, FeatureQualityMixin, SmartTransfor
             self._analyze_data(X, y)
             progress.update(task1, completed=True)
             
+            # Step 1.5: Generate missing value indicators BEFORE handling missing values
+            task1b = progress.add_task("🔎 Generating missing value indicators...", total=None)
+            self._missing_indicator_cols_ = []
+            missing_cols = [col for col in X.columns if X[col].isnull().any()]
+            for col in missing_cols:
+                indicator_name = f"{col}_is_missing"
+                self._missing_indicator_cols_.append((col, indicator_name))
+            progress.update(task1b, completed=True)
+            
             # Step 2: Handle missing values
             task2 = progress.add_task("🧹 Handling missing values...", total=None)
             X_clean = self._handle_missing_values(X)
             progress.update(task2, completed=True)
+            
+            # Step 2.5: Detect and fit datetime features
+            task2b = progress.add_task("📅 Detecting datetime features...", total=None)
+            self._fit_datetime_features(X_clean)
+            progress.update(task2b, completed=True)
             
             # Step 3: Transform numerical features
             task3 = progress.add_task("🔢 Transforming numerical features...", total=None)
@@ -190,27 +204,50 @@ class FeatureEngineer(BaseFeatureTransformer, FeatureQualityMixin, SmartTransfor
         if self.verbose:
             console.print("🔄 [bold green]Applying feature transformations...[/bold green]")
         
+        # Generate missing value indicators BEFORE handling missing values
+        missing_indicators = pd.DataFrame(index=X.index)
+        if hasattr(self, '_missing_indicator_cols_') and self._missing_indicator_cols_:
+            for col, indicator_name in self._missing_indicator_cols_:
+                if col in X.columns:
+                    missing_indicators[indicator_name] = X[col].isnull().astype(int)
+        
         # Handle missing values
         X_clean = self._handle_missing_values(X)
         
         # Apply transformations
         X_transformed = X_clean.copy()
         
+        # Transform datetime features
+        if hasattr(self, 'datetime_cols_') and self.datetime_cols_:
+            X_dt = self._transform_datetime_features(X_transformed)
+            # Drop original datetime columns and add engineered ones
+            dt_cols_in_df = [c for c in self.datetime_cols_ if c in X_transformed.columns]
+            if dt_cols_in_df:
+                X_transformed = X_transformed.drop(columns=dt_cols_in_df)
+            X_transformed = pd.concat([X_transformed, X_dt], axis=1)
+        
         # Transform numerical features
         if self.numerical_transformer_ is not None:
             numerical_cols = X_clean.select_dtypes(include=[np.number]).columns
+            # Exclude datetime-engineered columns from re-transformation
+            numerical_cols = [c for c in numerical_cols if c in X_transformed.columns]
             if len(numerical_cols) > 0:
-                X_num_transformed = self.numerical_transformer_.transform(X_clean[numerical_cols])
+                X_num_transformed = self.numerical_transformer_.transform(X_transformed[numerical_cols])
                 X_transformed = X_transformed.drop(columns=numerical_cols)
                 X_transformed = pd.concat([X_transformed, X_num_transformed], axis=1)
         
         # Transform categorical features
         if self.categorical_transformer_ is not None:
             categorical_cols = X_clean.select_dtypes(include=['object', 'category']).columns
+            categorical_cols = [c for c in categorical_cols if c in X_transformed.columns]
             if len(categorical_cols) > 0:
-                X_cat_transformed = self.categorical_transformer_.transform(X_clean[categorical_cols])
+                X_cat_transformed = self.categorical_transformer_.transform(X_transformed[categorical_cols])
                 X_transformed = X_transformed.drop(columns=categorical_cols)
                 X_transformed = pd.concat([X_transformed, X_cat_transformed], axis=1)
+        
+        # Add missing value indicators
+        if not missing_indicators.empty:
+            X_transformed = pd.concat([X_transformed, missing_indicators], axis=1)
         
         # Apply feature selection
         if self.feature_selector_ is not None:
@@ -246,17 +283,21 @@ class FeatureEngineer(BaseFeatureTransformer, FeatureQualityMixin, SmartTransfor
         elif self.handle_missing == 'simple':
             X_filled = X.copy()
             for col in X.columns:
-                if X[col].dtype in [np.number]:
+                if pd.api.types.is_numeric_dtype(X_filled[col]):
                     X_filled[col] = X_filled[col].fillna(X_filled[col].mean())
                 else:
                     X_filled[col] = X_filled[col].fillna(X_filled[col].mode().iloc[0] if not X_filled[col].mode().empty else 'missing')
             return X_filled
         else:  # auto or advanced
-            # For now, use simple strategy - can be enhanced later
             X_filled = X.copy()
             for col in X.columns:
-                if X[col].dtype in [np.number]:
-                    X_filled[col] = X_filled[col].fillna(X_filled[col].mean())
+                if pd.api.types.is_numeric_dtype(X_filled[col]):
+                    # Smart imputation: use median for skewed data, mean otherwise
+                    skewness = X_filled[col].skew()
+                    if abs(skewness) > 1:
+                        X_filled[col] = X_filled[col].fillna(X_filled[col].median())
+                    else:
+                        X_filled[col] = X_filled[col].fillna(X_filled[col].mean())
                 else:
                     X_filled[col] = X_filled[col].fillna(X_filled[col].mode().iloc[0] if not X_filled[col].mode().empty else 'missing')
             return X_filled
@@ -301,26 +342,104 @@ class FeatureEngineer(BaseFeatureTransformer, FeatureQualityMixin, SmartTransfor
     
     def _transform_without_selection(self, X: pd.DataFrame) -> pd.DataFrame:
         """Transform data without feature selection."""
+        # Missing indicators
+        missing_indicators = pd.DataFrame(index=X.index)
+        if hasattr(self, '_missing_indicator_cols_') and self._missing_indicator_cols_:
+            for col, indicator_name in self._missing_indicator_cols_:
+                if col in X.columns:
+                    missing_indicators[indicator_name] = X[col].isnull().astype(int)
+        
         X_clean = self._handle_missing_values(X)
         X_transformed = X_clean.copy()
+        
+        # Datetime features
+        if hasattr(self, 'datetime_cols_') and self.datetime_cols_:
+            X_dt = self._transform_datetime_features(X_transformed)
+            dt_cols_in_df = [c for c in self.datetime_cols_ if c in X_transformed.columns]
+            if dt_cols_in_df:
+                X_transformed = X_transformed.drop(columns=dt_cols_in_df)
+            X_transformed = pd.concat([X_transformed, X_dt], axis=1)
         
         # Transform numerical features
         if self.numerical_transformer_ is not None:
             numerical_cols = X_clean.select_dtypes(include=[np.number]).columns
+            numerical_cols = [c for c in numerical_cols if c in X_transformed.columns]
             if len(numerical_cols) > 0:
-                X_num_transformed = self.numerical_transformer_.transform(X_clean[numerical_cols])
+                X_num_transformed = self.numerical_transformer_.transform(X_transformed[numerical_cols])
                 X_transformed = X_transformed.drop(columns=numerical_cols)
                 X_transformed = pd.concat([X_transformed, X_num_transformed], axis=1)
         
         # Transform categorical features
         if self.categorical_transformer_ is not None:
             categorical_cols = X_clean.select_dtypes(include=['object', 'category']).columns
+            categorical_cols = [c for c in categorical_cols if c in X_transformed.columns]
             if len(categorical_cols) > 0:
-                X_cat_transformed = self.categorical_transformer_.transform(X_clean[categorical_cols])
+                X_cat_transformed = self.categorical_transformer_.transform(X_transformed[categorical_cols])
                 X_transformed = X_transformed.drop(columns=categorical_cols)
                 X_transformed = pd.concat([X_transformed, X_cat_transformed], axis=1)
         
+        # Add missing indicators
+        if not missing_indicators.empty:
+            X_transformed = pd.concat([X_transformed, missing_indicators], axis=1)
+        
         return X_transformed
+    
+    def _fit_datetime_features(self, X: pd.DataFrame):
+        """Detect and store datetime columns for feature extraction."""
+        self.datetime_cols_ = []
+        
+        # Find columns that are already datetime type
+        for col in X.columns:
+            if pd.api.types.is_datetime64_any_dtype(X[col]):
+                self.datetime_cols_.append(col)
+                continue
+            # Try to parse string columns as datetime
+            if X[col].dtype == 'object':
+                try:
+                    sample = X[col].dropna().head(20)
+                    parsed = pd.to_datetime(sample, infer_datetime_format=True, errors='coerce')
+                    if parsed.notna().mean() > 0.8:  # >80% successfully parsed
+                        self.datetime_cols_.append(col)
+                except Exception:
+                    pass
+        
+        if self.datetime_cols_ and self.verbose:
+            console.print(f"📅 Detected {len(self.datetime_cols_)} datetime columns: {', '.join(self.datetime_cols_)}")
+    
+    def _transform_datetime_features(self, X: pd.DataFrame) -> pd.DataFrame:
+        """Extract features from datetime columns."""
+        dt_features = pd.DataFrame(index=X.index)
+        
+        for col in self.datetime_cols_:
+            if col not in X.columns:
+                continue
+            try:
+                dt_series = pd.to_datetime(X[col], errors='coerce')
+                
+                dt_features[f"{col}_year"] = dt_series.dt.year
+                dt_features[f"{col}_month"] = dt_series.dt.month
+                dt_features[f"{col}_day"] = dt_series.dt.day
+                dt_features[f"{col}_dayofweek"] = dt_series.dt.dayofweek
+                dt_features[f"{col}_quarter"] = dt_series.dt.quarter
+                dt_features[f"{col}_is_weekend"] = (dt_series.dt.dayofweek >= 5).astype(int)
+                
+                # Hour only if time component exists
+                if (dt_series.dt.hour != 0).any():
+                    dt_features[f"{col}_hour"] = dt_series.dt.hour
+                
+                # Cyclical encoding for month and day_of_week
+                dt_features[f"{col}_month_sin"] = np.sin(2 * np.pi * dt_series.dt.month / 12)
+                dt_features[f"{col}_month_cos"] = np.cos(2 * np.pi * dt_series.dt.month / 12)
+                dt_features[f"{col}_dow_sin"] = np.sin(2 * np.pi * dt_series.dt.dayofweek / 7)
+                dt_features[f"{col}_dow_cos"] = np.cos(2 * np.pi * dt_series.dt.dayofweek / 7)
+                
+            except Exception:
+                pass
+        
+        # Fill NaN in engineered datetime features
+        dt_features = dt_features.fillna(0)
+        
+        return dt_features
     
     def _generate_transformation_summary(self, X: pd.DataFrame):
         """Generate summary of transformations applied."""
@@ -330,7 +449,9 @@ class FeatureEngineer(BaseFeatureTransformer, FeatureQualityMixin, SmartTransfor
             'numerical_transformations': [],
             'categorical_transformations': [],
             'feature_selection_applied': self.feature_selection,
-            'missing_values_handled': self.handle_missing != 'none'
+            'missing_values_handled': self.handle_missing != 'none',
+            'missing_indicators_added': len(getattr(self, '_missing_indicator_cols_', [])),
+            'datetime_features_engineered': len(getattr(self, 'datetime_cols_', []))
         }
         
         # Add transformation details from components

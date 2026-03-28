@@ -7,7 +7,7 @@ long_description = (here / "README.md").read_text(encoding="utf-8")
 
 setup(
     name="Essentiax",
-    version="1.1.10",  # Hotfix: UnboundLocalError for time/sys imports in smart_viz
+    version="1.1.11",  # AutoML bugs fixed, Insight Engine tests added
     author="Shubham Wagh",
     author_email="waghshubham197@gmail.com",
     description="Complete ML automation platform with AutoML, Feature Engineering, AI Insights, and Interactive Dashboards.",

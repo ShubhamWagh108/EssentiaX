@@ -1190,6 +1190,13 @@ class AutoML:
             self.best_model_ = self.model_rankings_[0]['model']
             self.best_score_ = self.model_rankings_[0]['score']
             
+            # Ensure the best single model is fitted
+            try:
+                self.best_model_.fit(X, y)
+            except Exception as e:
+                if self.verbose:
+                    console.print(f"⚠️ Error fitting best model: {str(e)}")
+            
             # Store Phase 2 advanced metrics
             if 'metrics' in self.model_rankings_[0]:
                 self.advanced_metrics_ = self.model_rankings_[0]['metrics']
@@ -1216,8 +1223,10 @@ class AutoML:
                 uncertainty_quantification=True,
                 ensemble_pruning=True,
                 random_state=self.random_state,
-                verbose=self.verbose
+                verbose=False  # Disable verbose to prevent spam
             )
+            
+            from sklearn.utils.validation import check_is_fitted
             
             # Get top models for ensemble (ensure they're fitted)
             top_models = []
@@ -1225,22 +1234,14 @@ class AutoML:
                 model = ranking['model']
                 # Ensure model is fitted
                 try:
-                    # Test if model is fitted by trying to predict on a small sample
-                    if len(X) > 0:
-                        # CRITICAL FIX: Use only the minimum available samples for testing
-                        test_sample = X.iloc[:min(1, len(X))].copy()
-                        model.predict(test_sample)
+                    check_is_fitted(model)
                     top_models.append(model)
-                except Exception as e:
-                    if self.verbose:
-                        console.print(f"⚠️ Model not fitted, re-fitting: {str(e)}")
-                    # Re-fit the model if it's not fitted
+                except Exception:
+                    # Re-fit the model if it's not fitted, without noisy warnings
                     try:
                         model.fit(X, y)
                         top_models.append(model)
                     except Exception as fit_error:
-                        if self.verbose:
-                            console.print(f"⚠️ Model fitting failed: {str(fit_error)}")
                         continue
             
             if len(top_models) < 2:

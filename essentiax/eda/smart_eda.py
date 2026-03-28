@@ -412,7 +412,7 @@ def _create_interactive_distribution(df, column):
     
     # Box plot
     fig.add_trace(
-        go.Box(y=data, name='Box Plot', marker_color='rgba(78, 205, 196, 0.7)'),
+        go.Box(x=data, name='Box Plot', marker_color='rgba(78, 205, 196, 0.7)'),
         row=2, col=1
     )
     
@@ -676,13 +676,37 @@ def smart_eda(
     n_rows, n_cols = df.shape
     dtypes = df.dtypes
     
+    # Data types breakdown (like manual df.dtypes.value_counts())
+    dtype_counts = df.dtypes.value_counts().to_dict()
+    dtype_counts_str = {str(k): int(v) for k, v in dtype_counts.items()}
+    
+    # Duplicate analysis
+    n_duplicates = int(df.duplicated().sum())
+    dup_pct = (n_duplicates / n_rows * 100) if n_rows > 0 else 0
+    
+    # Constant columns detection
+    constant_cols = [col for col in df.columns if df[col].nunique() <= 1]
+    near_constant_cols = [col for col in df.columns if 1 < df[col].nunique() <= 2 and col not in constant_cols]
+    
+    # High-zero columns
+    high_zero_cols = []
+    for col in numeric_cols:
+        zero_ratio = (df[col] == 0).sum() / n_rows
+        if zero_ratio > 0.5:
+            high_zero_cols.append((col, zero_ratio))
+    
     results["dataset_info"] = {
         "shape": (n_rows, n_cols),
         "memory_mb": df.memory_usage(deep=True).sum()/1024**2,
-        "duplicates": df.duplicated().sum(),
+        "duplicates": n_duplicates,
+        "duplicate_pct": round(dup_pct, 2),
         "numeric_cols": len(numeric_cols),
         "categorical_cols": len(categorical_cols),
-        "datetime_cols": len(datetime_cols)
+        "datetime_cols": len(datetime_cols),
+        "dtype_counts": dtype_counts_str,
+        "constant_columns": constant_cols,
+        "near_constant_columns": near_constant_cols,
+        "high_zero_columns": [(c, round(r, 3)) for c, r in high_zero_cols]
     }
 
     if mode in ["console", "all"]:
@@ -692,15 +716,52 @@ def smart_eda(
         console.print(f"• Columns: {n_cols}")
         console.print(f"• Total Cells: {df.size:,}")
         console.print(f"• Memory Usage: {results['dataset_info']['memory_mb']:.2f} MB")
-        console.print(f"• Duplicate Rows: {results['dataset_info']['duplicates']:,}")
+        console.print(f"• Duplicate Rows: {n_duplicates:,} ({dup_pct:.2f}%)")
+        
+        # Data Types Breakdown
+        console.print("\n📋 [bold yellow]Data Types Breakdown:[/bold yellow]")
+        dtype_table = Table(show_header=True, header_style="bold blue", box=box.SIMPLE)
+        dtype_table.add_column("Data Type", style="cyan")
+        dtype_table.add_column("Count", style="bold green")
+        dtype_table.add_column("Percentage", style="dim")
+        for dt, cnt in dtype_counts_str.items():
+            pct = cnt / n_cols * 100
+            dtype_table.add_row(str(dt), str(cnt), f"{pct:.1f}%")
+        console.print(dtype_table)
         
         console.print(f"\n• Meaningful Numeric Columns: {len(numeric_cols)}")
         console.print(f"• Meaningful Categorical Columns: {len(categorical_cols)}")
         console.print(f"• Date Columns: {len(datetime_cols)}")
         
+        # Constant/near-constant warnings
+        if constant_cols:
+            console.print(f"\n⚠️ [bold red]Constant Columns ({len(constant_cols)}):[/bold red] {', '.join(constant_cols[:5])}{'...' if len(constant_cols) > 5 else ''}")
+        if near_constant_cols:
+            console.print(f"⚠️ [yellow]Near-Constant Columns ({len(near_constant_cols)}):[/yellow] {', '.join(near_constant_cols[:5])}{'...' if len(near_constant_cols) > 5 else ''}")
+        if high_zero_cols:
+            console.print(f"⚠️ [yellow]High-Zero Columns ({len(high_zero_cols)}):[/yellow] {', '.join([f'{c} ({r*100:.0f}%)' for c,r in high_zero_cols[:5]])}")
+        
         if variable_analysis:
             total_excluded = sum(len(cols) for cols in variable_analysis['columns_to_exclude'].values())
             console.print(f"• Excluded Columns: {total_excluded}")
+        
+        # Sample Data Preview (like df.head())
+        console.print("\n📄 [bold yellow]Sample Data Preview (first 5 rows):[/bold yellow]")
+        try:
+            preview_cols = list(df.columns[:10])  # Limit to 10 columns for readability
+            preview_table = Table(show_header=True, header_style="bold blue", box=box.SIMPLE, show_lines=True)
+            for col in preview_cols:
+                preview_table.add_column(str(col), style="dim", max_width=20, overflow="ellipsis")
+            if len(df.columns) > 10:
+                preview_table.add_column(f"... +{len(df.columns)-10} more", style="dim")
+            for idx in range(min(5, len(df))):
+                row_vals = [str(df.iloc[idx][col])[:20] for col in preview_cols]
+                if len(df.columns) > 10:
+                    row_vals.append("...")
+                preview_table.add_row(*row_vals)
+            console.print(preview_table)
+        except Exception:
+            console.print("   (Could not render preview)")
 
     # =========================================================
     # 2️⃣ MISSING VALUES ANALYSIS
@@ -736,6 +797,10 @@ def smart_eda(
         desc = df_sample[numeric_cols].describe().T
         desc["skew"] = df_sample[numeric_cols].skew()
         desc["missing_%"] = (df[numeric_cols].isnull().sum() / len(df)) * 100
+        # Enhanced stats: IQR, Range, Coefficient of Variation
+        desc["IQR"] = desc["75%"] - desc["25%"]
+        desc["range"] = desc["max"] - desc["min"]
+        desc["CV"] = (desc["std"] / desc["mean"]).replace([np.inf, -np.inf], np.nan).fillna(0)
         
         results["numeric_analysis"] = {
             "descriptive_stats": desc.to_dict(),
@@ -746,8 +811,8 @@ def smart_eda(
         if mode in ["console", "all"]:
             console.print("\n3️⃣ [bold cyan]NUMERIC FEATURE PROFILE[/bold cyan]")
             console.print("-" * 70)
-            console.print(desc[["mean", "std", "min", "25%", "50%", "75%", "max", "skew", "missing_%"]]
-                          .head(8)
+            console.print(desc[["mean", "std", "min", "25%", "50%", "75%", "max", "IQR", "range", "CV", "skew", "missing_%"]]
+                          .head(10)
                           .round(3)
                           .to_string())
 
@@ -785,7 +850,8 @@ def smart_eda(
         results["categorical_analysis"] = {
             "cardinality": {},
             "balance_analysis": {},
-            "high_cardinality_cols": []
+            "high_cardinality_cols": [],
+            "entropy": {}
         }
 
         if mode in ["console", "all"]:
@@ -800,9 +866,30 @@ def smart_eda(
                 if unique > n_rows * 0.5:
                     results["categorical_analysis"]["high_cardinality_cols"].append(col)
                 
+                # Entropy and balance analysis
+                value_counts = df[col].value_counts()
+                if len(value_counts) > 1:
+                    probabilities = value_counts / value_counts.sum()
+                    entropy = float(-np.sum(probabilities * np.log2(probabilities + 1e-8)))
+                    max_entropy = float(np.log2(len(value_counts)))
+                    balance_ratio = round(entropy / max_entropy, 3) if max_entropy > 0 else 0
+                    imbalance_ratio = round(float(value_counts.iloc[0] / value_counts.iloc[-1]), 2) if value_counts.iloc[-1] > 0 else float('inf')
+                else:
+                    entropy = 0.0
+                    balance_ratio = 0.0
+                    imbalance_ratio = float('inf')
+                
+                results["categorical_analysis"]["entropy"][col] = {
+                    "entropy": round(entropy, 3),
+                    "balance_ratio": balance_ratio,
+                    "imbalance_ratio": imbalance_ratio
+                }
+                results["categorical_analysis"]["balance_analysis"][col] = balance_ratio
+                
                 top = df[col].value_counts().head(3)
                 console.print(f"\n📌 {col}")
                 console.print(f"• Unique Values: {unique}")
+                console.print(f"• Entropy: {entropy:.3f} | Balance: {balance_ratio:.3f} | Top/Bottom Ratio: {imbalance_ratio:.1f}x")
                 for val, cnt in top.items():
                     pct = 100 * cnt / len(df)
                     console.print(f"   - {val}  ({pct:.2f}%)")
@@ -967,6 +1054,7 @@ def smart_eda(
                 console.print("   🤖 [bold green]Auto-detected by Smart Variable Detector[/bold green]")
             console.print(f"   • Dtype: {y.dtype}")
             console.print(f"   • Unique Values: {y.nunique()}")
+            console.print(f"   • Missing: {y.isnull().sum()} ({y.isnull().mean()*100:.2f}%)")
 
             if problem_type is None:
                 console.print("   ❌ Invalid or constant target — cannot define a problem.")
@@ -975,6 +1063,23 @@ def smart_eda(
 
             if problem_type == "classification" and imbalance_flag:
                 console.print(f"   ⚠ Class Imbalance Detected — majority class = {majority_ratio*100:.1f}%")
+            
+            # Target distribution summary
+            if problem_type == "classification" or (y.nunique() <= 20):
+                console.print("\n   📊 [bold yellow]Target Distribution:[/bold yellow]")
+                target_vc = y.value_counts()
+                for val, cnt in target_vc.head(10).items():
+                    pct = cnt / len(y) * 100
+                    bar_len = int(pct / 2)
+                    bar = '█' * bar_len
+                    console.print(f"      {str(val):15s} → {cnt:8,} ({pct:5.1f}%) {bar}")
+                if len(target_vc) > 10:
+                    console.print(f"      ... and {len(target_vc) - 10} more classes")
+            elif problem_type == "regression":
+                console.print("\n   📊 [bold yellow]Target Distribution (Regression):[/bold yellow]")
+                console.print(f"      Mean: {y.mean():.4f} | Median: {y.median():.4f} | Std: {y.std():.4f}")
+                console.print(f"      Min: {y.min():.4f} | Max: {y.max():.4f}")
+                console.print(f"      Skewness: {y.skew():.4f} | Kurtosis: {y.kurtosis():.4f}")
 
     # =========================================================
     # 9️⃣ MODEL RECOMMENDATIONS
@@ -1000,31 +1105,85 @@ def smart_eda(
                 console.print(f"       - {n}")
 
     # =========================================================
-    # 🔟 DATA QUALITY SCORE
+    # 🔟 DATA QUALITY SCORE (Proportional)
     # =========================================================
-    score = 100
+    score = 100.0
     missing_pct_total = results["missing_analysis"]["missing_percentage"]
     high_card_count = len(results["categorical_analysis"].get("high_cardinality_cols", []))
+    n_constant = len(results["dataset_info"].get("constant_columns", []))
+    dup_pct_val = results["dataset_info"].get("duplicate_pct", 0)
     
-    if missing_pct_total > 10:
-        score -= 20
-    if high_card_count > 2:
-        score -= 10
-    if results["dataset_info"]["duplicates"] > 0:
-        score -= 5
+    quality_breakdown = {}
+    
+    # Missing values: proportional penalty (max -30)
+    missing_penalty = min(30, missing_pct_total * 0.6)
+    score -= missing_penalty
+    quality_breakdown["Missing Values"] = f"-{missing_penalty:.1f}"
+    
+    # Duplicates: proportional penalty (max -15)
+    dup_penalty = min(15, dup_pct_val * 0.3)
+    score -= dup_penalty
+    quality_breakdown["Duplicates"] = f"-{dup_penalty:.1f}"
+    
+    # Constant columns penalty (max -15)
+    if n_constant > 0:
+        const_penalty = min(15, n_constant * 5)
+        score -= const_penalty
+        quality_breakdown["Constant Columns"] = f"-{const_penalty:.1f}"
+    
+    # High cardinality (max -10)
+    if high_card_count > 0:
+        hc_penalty = min(10, high_card_count * 3)
+        score -= hc_penalty
+        quality_breakdown["High Cardinality"] = f"-{hc_penalty:.1f}"
+    
+    # No numeric columns
     if len(numeric_cols) == 0:
-        score -= 20
+        score -= 15
+        quality_breakdown["No Numeric Cols"] = "-15.0"
+    
+    # Memory usage
     if results["dataset_info"]["memory_mb"] > 200:
         score -= 5
+        quality_breakdown["High Memory"] = "-5.0"
+    
+    # Invalid target
     if problem_type is None and target is not None:
         score -= 10
+        quality_breakdown["Invalid Target"] = "-10.0"
+    
+    # Highly skewed features penalty (max -10)
+    if numeric_cols:
+        n_highly_skewed = sum(1 for col in numeric_cols[:10] if abs(df_sample[col].skew()) > 2)
+        if n_highly_skewed > 0:
+            skew_penalty = min(10, n_highly_skewed * 2)
+            score -= skew_penalty
+            quality_breakdown["Highly Skewed"] = f"-{skew_penalty:.1f}"
 
-    results["data_quality_score"] = max(int(score), 1)
+    results["data_quality_score"] = max(int(round(score)), 1)
+    results["quality_breakdown"] = quality_breakdown
 
     if mode in ["console", "all"]:
         console.print(f"\n🔟 [bold cyan]DATA QUALITY SCORE[/bold cyan]")
         console.print("-" * 70)
-        console.print(f"💯 Dataset Quality Score: {results['data_quality_score']} / 100")
+        
+        # Color the score
+        q_score = results['data_quality_score']
+        if q_score >= 80:
+            score_color = "bold green"
+        elif q_score >= 60:
+            score_color = "bold yellow"
+        elif q_score >= 40:
+            score_color = "bold orange1"
+        else:
+            score_color = "bold red"
+        
+        console.print(f"💯 Dataset Quality Score: [{score_color}]{q_score} / 100[/{score_color}]")
+        
+        if quality_breakdown:
+            console.print("\n   Breakdown:")
+            for factor, penalty in quality_breakdown.items():
+                console.print(f"      • {factor}: {penalty} pts")
 
     # =========================================================
     # 1️⃣1️⃣ ENHANCED INTERACTIVE VISUALIZATIONS
@@ -1162,6 +1321,8 @@ def smart_eda(
         
         # Target analysis section
         if target and problem_type:
+            baseline_models_html = ''.join([f'<li>{model}</li>' for model in model_rec['baseline']])
+            advanced_models_html = ''.join([f'<li>{model}</li>' for model in model_rec['advanced']])
             target_html = f"""
             <section>
               <h2>3. Target Analysis & ML Recommendations</h2>
@@ -1171,11 +1332,11 @@ def smart_eda(
               <h3>Recommended Models</h3>
               <h4>Baseline Models:</h4>
               <ul>
-                {''.join([f'<li>{model}</li>' for model in model_rec['baseline']])}
+                {baseline_models_html}
               </ul>
               <h4>Advanced Models:</h4>
               <ul>
-                {''.join([f'<li>{model}</li>' for model in model_rec['advanced']])}
+                {advanced_models_html}
               </ul>
             </section>
             """

@@ -10,6 +10,7 @@ import numpy as np
 from typing import Any, Dict, List, Optional, Union, Tuple
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder
 from sklearn.feature_extraction.text import TfidfVectorizer
+from scipy import stats
 import warnings
 
 from ..core.base_transformer import BaseFeatureTransformer, SmartTransformationMixin

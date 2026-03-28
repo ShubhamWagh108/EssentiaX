@@ -90,6 +90,10 @@ class NumericalTransformer(BaseFeatureTransformer, SmartTransformationMixin):
         polynomial_degree: int = 2,
         handle_outliers: bool = True,
         outlier_method: str = 'iqr',
+        generate_bins: bool = False,
+        n_bins: int = 5,
+        generate_ratios: bool = False,
+        max_ratios: int = 5,
         verbose: bool = True
     ):
         super().__init__(verbose=verbose)
@@ -105,6 +109,10 @@ class NumericalTransformer(BaseFeatureTransformer, SmartTransformationMixin):
         self.polynomial_degree = polynomial_degree
         self.handle_outliers = handle_outliers
         self.outlier_method = outlier_method
+        self.generate_bins = generate_bins
+        self.n_bins = n_bins
+        self.generate_ratios = generate_ratios
+        self.max_ratios = max_ratios
         
         # Fitted components
         self.scalers_ = {}
@@ -113,6 +121,8 @@ class NumericalTransformer(BaseFeatureTransformer, SmartTransformationMixin):
         self.interaction_features_ = []
         self.outlier_bounds_ = {}
         self.feature_stats_ = {}
+        self.bin_edges_ = {}
+        self.ratio_pairs_ = []
         
     def _fit(self, X: pd.DataFrame, y: Optional[pd.Series] = None) -> 'NumericalTransformer':
         """Fit the numerical transformer."""
@@ -136,6 +146,14 @@ class NumericalTransformer(BaseFeatureTransformer, SmartTransformationMixin):
         # Identify interaction features
         if self.generate_interactions:
             self._identify_interactions(X, y)
+        
+        # Fit binning
+        if self.generate_bins:
+            self._fit_binning(X)
+        
+        # Identify ratio pairs
+        if self.generate_ratios:
+            self._identify_ratio_pairs(X, y)
         
         return self
     
@@ -165,6 +183,16 @@ class NumericalTransformer(BaseFeatureTransformer, SmartTransformationMixin):
         if self.generate_interactions:
             X_interactions = self._generate_interaction_features(X_transformed)
             X_transformed = pd.concat([X_transformed, X_interactions], axis=1)
+        
+        # Generate binned features
+        if self.generate_bins and self.bin_edges_:
+            X_binned = self._generate_binned_features(X_transformed)
+            X_transformed = pd.concat([X_transformed, X_binned], axis=1)
+        
+        # Generate ratio features
+        if self.generate_ratios and self.ratio_pairs_:
+            X_ratios = self._generate_ratio_features(X_transformed)
+            X_transformed = pd.concat([X_transformed, X_ratios], axis=1)
         
         return X_transformed
     
@@ -519,5 +547,71 @@ class NumericalTransformer(BaseFeatureTransformer, SmartTransformationMixin):
             'skewness_transformers_applied': list(self.transformers_.keys()),
             'polynomial_features_generated': self.polynomial_features_ is not None,
             'interaction_features_generated': len(self.interaction_features_),
-            'outlier_handling_applied': self.handle_outliers
+            'outlier_handling_applied': self.handle_outliers,
+            'binned_features': list(self.bin_edges_.keys()),
+            'ratio_features': len(self.ratio_pairs_)
         }
+    
+    def _fit_binning(self, X: pd.DataFrame):
+        """Fit equal-frequency binning for numeric features."""
+        for col in X.columns:
+            if col in self.feature_stats_:
+                fstats = self.feature_stats_[col]
+                # Bin highly skewed or high-cardinality continuous features
+                if (abs(fstats.get('skewness', 0)) > 1.5 or fstats.get('unique_ratio', 0) > 0.5) and fstats.get('unique_ratio', 0) > 0.05:
+                    try:
+                        _, edges = pd.qcut(X[col].dropna(), q=self.n_bins, duplicates='drop', retbins=True)
+                        if len(edges) > 2:  # At least 2 bins
+                            self.bin_edges_[col] = edges
+                    except Exception:
+                        pass
+    
+    def _generate_binned_features(self, X: pd.DataFrame) -> pd.DataFrame:
+        """Generate binned feature columns."""
+        X_binned = pd.DataFrame(index=X.index)
+        for col, edges in self.bin_edges_.items():
+            if col in X.columns:
+                try:
+                    binned = pd.cut(X[col], bins=edges, include_lowest=True, labels=False)
+                    X_binned[f"{col}_bin"] = binned.fillna(-1).astype(int)
+                except Exception:
+                    pass
+        return X_binned
+    
+    def _identify_ratio_pairs(self, X: pd.DataFrame, y: Optional[pd.Series] = None):
+        """Identify pairs of features that make meaningful ratios."""
+        features = list(X.columns)
+        candidates = []
+        
+        for i, f1 in enumerate(features):
+            for j, f2 in enumerate(features[i+1:], i+1):
+                if len(candidates) >= self.max_ratios * 3:  # Evaluate more, keep top
+                    break
+                # Both must be strictly positive (for safe division)
+                if (X[f1] > 0).all() and (X[f2] > 0).all():
+                    try:
+                        ratio = X[f1] / X[f2]
+                        if y is not None:
+                            r_corr = abs(ratio.corr(y))
+                            f1_corr = abs(X[f1].corr(y))
+                            f2_corr = abs(X[f2].corr(y))
+                            # Ratio must add predictive value beyond individual features
+                            if r_corr > max(f1_corr, f2_corr) + 0.02:
+                                candidates.append((f1, f2, r_corr))
+                        else:
+                            # Without target, use variance of the ratio
+                            if ratio.var() > 0.01:
+                                candidates.append((f1, f2, ratio.var()))
+                    except Exception:
+                        pass
+        
+        candidates.sort(key=lambda x: x[2], reverse=True)
+        self.ratio_pairs_ = candidates[:self.max_ratios]
+    
+    def _generate_ratio_features(self, X: pd.DataFrame) -> pd.DataFrame:
+        """Generate ratio features."""
+        X_ratios = pd.DataFrame(index=X.index)
+        for f1, f2, _ in self.ratio_pairs_:
+            if f1 in X.columns and f2 in X.columns:
+                X_ratios[f"{f1}_div_{f2}"] = X[f1] / (X[f2] + 1e-8)
+        return X_ratios
